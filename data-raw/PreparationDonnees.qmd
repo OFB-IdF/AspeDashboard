@@ -1,0 +1,664 @@
+---
+title: "Préparation des données ASPE"
+output: github_document
+format: gfm
+execute: 
+  eval: false
+editor: visual
+---
+
+La préparation des données reprend les étapes [décrites ici](https://github.com/PascalIrz/aspe_demo/blob/main/scripts/10_preparation_donnees.Rmd).
+
+# Données complémentaires
+
+```{r}
+get_sandre_layers <- function(sandre_url = "https://services.sandre.eaufrance.fr/geo/sandre") {
+   client_sandre <- ows4R::WFSClient$new(
+        sandre_url,
+        serviceVersion = "2.0.0"
+        )
+    
+    client_sandre$getFeatureTypes(pretty = TRUE)
+}
+
+read_sandre_wfs <- function(layer, crs, sandre_url = "https://services.sandre.eaufrance.fr/geo/sandre") {
+    sandre_url %>% 
+        (function(x) {
+        url <- httr::parse_url(x)
+        url$query <- list(
+            service = "wfs",
+            request = "GetFeature",
+            typename = layer,
+            version = "2.0.0",
+            srsName = paste0("EPSG:", crs)
+        )
+        url
+    }) %>% 
+    httr::build_url() %>% 
+    sf::st_read()
+}
+```
+
+```{r}
+get_sandre_layers()
+
+```
+
+## Découpage hydrographique
+
+```{r}
+sh_geo <- read_sandre_wfs(
+    layer = "sa:SecteurHydro_FXX_Carthage2017",
+    crs = 2154
+)
+
+rh_geo <- sh_geo %>% 
+  dplyr::group_by(LbRegionHydro) %>% 
+    dplyr::summarise(.groups = "drop")
+
+dh_geo <- read_sandre_wfs(
+    layer = "sa:BassinHydrographique_FXX_Topage2019",
+    crs = 2154
+)
+  
+save(sh_geo, rh_geo, dh_geo, file = "hydro_sandre.rda")
+```
+
+```{r}
+load("hydro_sandre.rda")
+```
+
+## Découpage administratif
+
+```{r}
+if (!require("COGiter")) remotes::install_github("MaelTheuliere/COGiter")
+dep_geo <- COGiter::departements_metro_geo %>% 
+             dplyr::left_join(
+                 COGiter::departements,
+                 by = "DEP"
+                 ) %>% 
+             dplyr::select(
+                 INSEE_REG = REG, 
+                 INSEE_DEP = DEP,
+                 NOM_DEP = NCCENR
+                 )
+
+reg_geo <- COGiter::regions_metro_geo %>% 
+             dplyr::left_join(
+                 COGiter::regions,
+                 by = "REG"
+                 ) %>% 
+             dplyr::select(
+                 INSEE_REG = REG,
+                 NOM_REG = NCCENR
+                 )
+
+administratif <- dep_geo %>% 
+    sf::st_drop_geometry() %>% 
+    dplyr::distinct(
+        INSEE_REG, INSEE_DEP, NOM_DEP
+    ) %>% 
+    dplyr::mutate(
+        INSEE_REG = factor(
+            INSEE_REG,
+            levels = c("84", "27", "53", "24", "44", "32", "11", "28", "75", "76", "52", "93", "94")
+        ),
+        departement = paste0(NOM_DEP, " (", INSEE_DEP, ")")
+    ) %>% 
+    dplyr::filter(!is.na(INSEE_REG)) %>% 
+    dplyr::arrange(INSEE_REG, NOM_DEP) %>% 
+    dplyr::mutate(INSEE_REG = as.character(INSEE_REG))
+
+usethis::use_data(administratif, overwrite = TRUE)
+```
+
+# Données ASPE
+
+## Chargement des données
+
+Les données utilisées sont les données du dump sql de la base importées dans R mais sans autre pré-traitement.
+
+```{r}
+load("tables_sauf_mei_2023_11_08_15_32_42.236211.RData")
+```
+
+## Sélection des données de capture
+
+On ne conserve que les données ayant une qualification correcte et correspondant à des protocoles permettant d'avoir une vision peuplement (les protocoles ciblant des espèces particulières ne sont pas conservés).
+
+```{r}
+if (!require("aspe")) remotes::install_github("PascalIrz/aspe")
+captures <- aspe::mef_creer_passerelle() %>%
+  aspe::mef_ajouter_ope_date() %>%
+  aspe::mef_ajouter_libelle() %>% 
+  aspe::mef_ajouter_qualification() %>% 
+  aspe::mef_ajouter_type_protocole() %>% 
+  aspe::mef_ajouter_libelle() %>% 
+    dplyr::filter(
+        niq_libelle == "Correcte",
+        !is.na(sta_id),
+        pro_libelle %in% c(
+            "Pêche complète à un ou plusieurs passages",
+            "Pêche par ambiances",
+            "Pêche partielle par points (grand milieu)",
+            "Pêche partielle sur berge"
+        )
+    ) %>% 
+  aspe::mef_ajouter_lots() %>% 
+    dplyr::group_by(
+        sta_id,
+        pop_id, pop_libelle, 
+        ope_id, ope_date, annee, 
+        pro_libelle,
+        esp_code_alternatif
+    ) %>% 
+    dplyr::summarise(
+        effectif = sum(lop_effectif), 
+        .groups = "drop"
+        )
+```
+
+Dans un certain nombre de cas, il peut y avoir plus d'une pêche par point et par an, y-a-t-il une raison et quelle pêche conserver?
+
+```{r}
+captures %>% 
+    dplyr::group_by(
+        pop_id, pop_libelle, annee
+    ) %>% 
+    dplyr::summarise(
+        n_ope = dplyr::n_distinct(ope_id), 
+        .groups = "drop"
+        ) %>% 
+    dplyr::filter(n_ope > 1)
+
+
+```
+
+Pour le moment, on conserve la dernière pêche de l'année.
+
+```{r}
+captures <- captures %>% 
+    dplyr::group_by(pop_id, annee) %>% 
+    dplyr::filter(ope_date == max(ope_date)) %>% 
+    dplyr::ungroup()
+
+```
+
+## IPR
+
+Production d'une liste de graphiques d'IPR par point de prélèvement.
+
+> il y a un problème avec l'axe des y pour certaines chroniques. La limite maxi coupe les valeurs (maxi de 108 environ pour les opérations retenues -\> voir comment on gère ces cas de figure
+
+```{r}
+classe_ipr <- classe_ipr %>% 
+    aspe::ip_completer_classes_couleur()
+
+ipr <- aspe::mef_creer_passerelle() %>% 
+    dplyr::distinct(sta_id, pop_id, ope_id) %>% 
+    dplyr::filter(ope_id %in% captures$ope_id) %>%
+    aspe::mef_ajouter_ope_env() %>% 
+    aspe::mef_ajouter_libelle() %>% 
+    aspe::mef_ajouter_ope_date() %>% 
+    aspe::mef_ajouter_ipr() %>% 
+    dplyr::mutate(sup_500m = altitude > 500) %>% 
+    dplyr::filter(
+        !is.na(ipr),
+        !is.na(sup_500m)
+    )
+
+```
+
+## Spatialisation des points de prélèvement
+
+```{r}
+pop <- point_prelevement %>%
+  dplyr::rename(sta_id = pop_sta_id) %>% # nécessaire pour la jointure de mef_ajouter_libelle
+  aspe::mef_ajouter_libelle() %>%
+  dplyr::left_join(
+      y = station %>%
+          dplyr::select(sta_id, sta_code_sandre)
+      ) %>%
+  aspe::geo_ajouter_crs(var_id_crs = pop_typ_id) %>%
+  dplyr::select(
+    pop_id,
+    pop_libelle,
+    pop_coordonnees_x,
+    pop_coordonnees_y,
+    typ_code_epsg,
+    sta_code_sandre
+  ) %>% 
+    dplyr::filter(
+        pop_id %in% unique(captures$pop_id)
+    )
+
+coords <- aspe::geo_convertir_coords_df(
+    df = pop,
+    var_id = pop_id,
+    var_x = pop_coordonnees_x,
+    var_y = pop_coordonnees_y,
+    var_crs_initial = typ_code_epsg,
+    crs_sortie = 2154
+    ) %>%
+  dplyr::rename(x_l93 = X, y_l93 = Y)
+
+pop_geo <- pop %>%
+  dplyr::left_join(coords) %>%
+  dplyr::filter(
+      x_l93 >= sf::st_bbox(reg_geo)$xmin,
+      x_l93 <= sf::st_bbox(reg_geo)$xmax,
+      y_l93 >= sf::st_bbox(reg_geo)$ymin,
+      y_l93 <= sf::st_bbox(reg_geo)$ymax
+      ) %>% 
+    sf::st_as_sf(
+        coords = c("x_l93", "y_l93"),
+        crs = 2154
+        ) %>%
+  aspe::geo_attribuer(poly_sf = dep_geo) %>%
+  aspe::geo_attribuer(poly_sf = reg_geo) %>%
+  aspe::geo_attribuer(poly_sf = sh_geo) %>%
+  aspe::geo_attribuer(poly_sf = rh_geo) %>%
+  aspe::geo_attribuer(poly_sf = dh_geo) %>%   
+  dplyr::select(
+    pop_id,
+    pop_libelle,
+    sta_code_sandre,
+    dept_id = INSEE_DEP,
+    dept_libelle = NOM_DEP,
+    reg_id = INSEE_REG.x,
+    reg_libelle = NOM_REG,
+    sh_id = CdSecteurHydro,
+    sh_libelle = LbSecteurHydro,
+    rh_id = CdRegionHydro,
+    rh_libelle = LbRegionHydro.x,
+    dh_id = CdBH,
+    dh_libelle = LbBH
+  )
+
+usethis::use_data(pop_geo, overwrite = TRUE)
+```
+
+```{r}
+captures <- captures %>% 
+    dplyr::left_join(
+        pop_geo %>% 
+            sf::st_drop_geometry() %>% 
+            dplyr::select(pop_id, dept_id, dh_libelle),
+        by = "pop_id"
+    )
+
+ipr <- ipr %>% 
+    dplyr::left_join(
+        pop_geo %>% 
+            sf::st_drop_geometry() %>% 
+            dplyr::select(pop_id, dept_id, dh_libelle),
+        by = "pop_id"
+    )
+
+usethis::use_data(captures, ipr, overwrite = TRUE)
+```
+
+# Graphiques Popups
+
+```{r}
+DimensionsPopups <- list(
+    largeur = 4,
+    hauteur = 5
+)
+```
+
+## Composition taxonomique
+
+```{r}
+plots_especes <- captures %>% 
+    # dplyr::filter(pop_id == pop_id[100]) %>% 
+     aspe::gg_temp_peuplement(
+         interactif = TRUE,
+         largeur = DimensionsPopups$largeur,
+         hauteur = DimensionsPopups$hauteur,
+         rescale = TRUE,
+         width = .96
+         )
+
+usethis::use_data(plots_especes, overwrite = TRUE)
+```
+
+## IPR
+
+```{r}
+plots_ipr <- ipr %>% 
+    dplyr::group_by(sup_500m) %>% 
+    dplyr::group_split() %>% 
+    purrr::map(
+        .f = function(df_ipr) {
+            
+            pops <- df_ipr %>% 
+                dplyr::distinct(pop_id, pop_libelle)
+            
+            pb <- progress::progress_bar$new(
+                total = nrow(pops),
+                format = "[:bar] :percent (:eta)"
+                )
+            
+            pops$pop_libelle %>% 
+                purrr::map(
+                    .f = function(i) {
+                        pb$tick()
+                        
+                        aspe::gg_temp_ipr(
+                            df_ipr = df_ipr,
+                            var_ipr = ipr,
+                            var_id_sta = pop_libelle,
+                            station_sel = i,
+                            sup_500m = unique(df_ipr$sup_500m),
+                            max_axe_y = 50,
+                            interactif = TRUE,
+                            largeur = DimensionsPopups$largeur,
+                            hauteur = DimensionsPopups$hauteur,
+                            titre_graphique = "",
+                            titre_y = "Valeur d'IPR",
+                            df_classes = classe_ipr,
+                            options = list(ggiraph::opts_sizing(rescale = TRUE,
+                            width = .96))
+                        )
+                        }
+                ) %>% 
+                purrr::set_names(nm = pops$pop_id)
+            }
+        ) %>% 
+    purrr::reduce(.f = c)
+
+usethis::use_data(plots_ipr, overwrite = TRUE)
+```
+
+## Finalisation popups
+
+```{r}
+codes_especes <- aspe::data_passerelle_taxo$esp_code_taxref %>% 
+        purrr::set_names(aspe::data_passerelle_taxo$esp_code_alternatif)
+
+usethis::use_data(codes_especes, overwrite = TRUE)
+```
+
+```{r}
+dir.create("inst/app/www/widgets", recursive = TRUE)
+```
+
+```{r}
+popups_especes <- AspeDashboard::prep_sauver_popups(
+    # plots = plots_especes[seq(10)],
+    plots = plots_especes,
+    dir_popup = "inst/app/www/widgets/especes",
+    largeur_popup = DimensionsPopups$largeur*1.25,
+    hauteur_popup = DimensionsPopups$hauteur*1.25+.66,
+    reduire_marges = TRUE,
+    lien_inpn = TRUE,
+    verbose = TRUE
+)
+
+AspeDashboard::archiver_popups(
+    dir_popup = "inst/app/www/widgets/especes",
+    archive_name = "inst/app/www/widgets/especes.tar"
+)
+
+file.copy(
+    from = "inst/app/www/widgets/especes.tar",
+    to = "../inst/app/www/widgets/especes.tar",
+    overwrite = TRUE
+    )
+
+usethis::use_data(popups_especes, overwrite = TRUE)
+```
+
+```{r}
+ popups_ipr <- AspeDashboard::prep_sauver_popups(
+     # plots = plots_ipr[names(plots_ipr) %in% names(plots_especes[seq(10)])],
+     plots = plots_ipr,
+     dir_popup = "inst/app/www/widgets/ipr",
+     largeur_popup = DimensionsPopups$largeur*1.25,
+     hauteur_popup = DimensionsPopups$hauteur*1.25+.5,
+     reduire_marges = TRUE,
+     lien_inpn = FALSE,
+     verbose = TRUE
+ )
+ 
+AspeDashboard::archiver_popups(
+     dir_popup = "inst/app/www/widgets/ipr",
+     archive_name = "inst/app/www/widgets/ipr.tar"
+     )
+ 
+ file.copy(
+     from = "inst/app/www/widgets/ipr.tar",
+     to = "../inst/app/www/widgets/ipr.tar",
+     overwrite = TRUE
+     )
+
+ usethis::use_data(popups_ipr, overwrite = TRUE)
+```
+
+```{r}
+unlink("inst", recursive = TRUE)
+```
+
+## CSS
+
+```{r}
+
+file.copy(
+    from = "../inst/app/www/style.css.bkp",
+    to = "../inst/app/www/style.css",
+    overwrite = TRUE
+)
+
+cat(
+    popups_especes$css,
+    file = "../inst/app/www/style.css",
+    append = TRUE
+    )
+
+```
+
+# Carte
+
+```{r}
+SyntheseEspeces <- captures %>%
+    dplyr::mutate(pop_id = as.character(pop_id)) %>%
+    dplyr::group_by(pop_id, annee) %>%
+    dplyr::summarise(
+        nb_esp = dplyr::n_distinct(esp_code_alternatif),
+        .groups = "drop"
+                ) %>%
+                dplyr::group_by(pop_id) %>%
+                dplyr::summarise(
+                    nb_annees = dplyr::n_distinct(annee),
+                    variable = "especes",
+                    valeur = as.character(nb_esp[annee == max(annee)]),
+                    derniere_annee = max(annee),
+                    donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5,
+                    .groups= "drop"
+                )
+
+SyntheseIpr <-  ipr %>% 
+            dplyr::mutate(pop_id = as.character(pop_id)) %>% 
+            dplyr::group_by(pop_id) %>% 
+            dplyr::summarise(
+                nb_annees = dplyr::n_distinct(annee),
+                variable = "ipr",
+                valeur = as.character(cli_libelle[annee == max(annee)]),
+                derniere_annee = max(annee),
+                donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5,
+                .groups = "drop"
+            )
+
+
+```
+
+```{r}
+color_pal_esp <- leaflet::colorNumeric(
+                palette = "viridis",
+                domain = log10(as.numeric(SyntheseEspeces$valeur)+1)
+            )
+
+CouleursIpr <- classe_ipr %>% 
+                dplyr::distinct(cli_libelle, classe_couleur)
+color_pal_ipr <- leaflet::colorFactor(
+                palette = CouleursIpr$classe_couleur,
+                levels = CouleursIpr$cli_libelle
+            )
+
+```
+
+```{r}
+carte_operations <- dplyr::bind_rows(
+    pop_geo %>%
+        dplyr::mutate(pop_id = as.character(pop_id)) %>%
+        dplyr::left_join(SyntheseEspeces, by = "pop_id"),
+    pop_geo %>% 
+        dplyr::mutate(pop_id = as.character(pop_id)) %>% 
+        dplyr::left_join(SyntheseIpr, by = "pop_id")
+    ) %>% 
+    dplyr::mutate(
+        hover = paste0(
+            "<b>", pop_libelle, " (", pop_id, ")</b><br>",
+            "<em>", dept_libelle, " (", reg_libelle, ")</em><br>",
+            nb_annees, " année",
+            ifelse(nb_annees > 1 , "s", ""),
+            " de suivi<br>",
+            dplyr::case_when(
+                variable == "especes" ~ paste0(
+                    valeur, " espèce",
+                    ifelse(as.numeric(valeur) > 1, "s", "")
+                    ),
+                variable == "ipr" ~ paste0(valeur, " état")
+                ),
+            " (", derniere_annee, ")"
+            ),
+        couleur = dplyr::case_when(
+            variable == "especes" ~ color_pal_esp(log10(as.numeric(valeur)+1)),
+            variable == "ipr" ~ color_pal_ipr(valeur)
+        ),
+        opacite = ifelse(donnees_recentes, 1, .25)
+        ) %>%
+    sf::st_transform(4326) %>% 
+    dplyr::select(
+        pop_id, dept_id, dh_libelle,
+        nb_annees, variable, valeur, hover, couleur, opacite
+        ) 
+
+usethis::use_data(carte_operations, overwrite = TRUE)
+```
+
+```{r}
+LegendeEspeces <- (
+    carte_operations %>% 
+    dplyr::filter(variable == "especes") %>% 
+    ggplot2::ggplot() +
+    ggplot2::geom_sf(
+        mapping = ggplot2::aes(
+            color = as.numeric(valeur),
+            size = nb_annees
+        )
+    ) +
+    ggplot2::scale_radius(name = "Nombre d'années de suivi\n") +
+    ggplot2::scale_color_viridis_c(name = "Nombre d'espèces\nlors de la dernière pêche") +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+        legend.position = "bottom"
+    ) +
+    ggplot2::guides(
+        size = ggplot2::guide_legend(
+            order = 1,
+            title.position = "top"
+            ),
+        color = ggplot2::guide_colorbar(
+            order = 2,
+            title.position = "top"
+            )
+        )
+    )  %>% 
+    cowplot::get_legend() %>% 
+    cowplot::plot_grid() +
+    ggplot2::theme(
+        plot.margin = ggplot2::unit(c(0,0,0,0), 'pt')
+    )
+
+LegendeIpr <- (
+    carte_operations %>% 
+    dplyr::filter(variable == "ipr") %>% 
+    ggplot2::ggplot() +
+    ggplot2::geom_sf(
+        mapping = ggplot2::aes(
+            color = valeur,
+            size = nb_annees
+        )
+    ) +
+    ggplot2::scale_radius(name = "Nombre d'années de suivi\n") +
+    ggplot2::scale_color_manual(
+        name = "Classe de qualité IPR\nlors de la dernière pêche",
+        values = CouleursIpr %>% 
+            dplyr::pull(classe_couleur) %>% 
+            purrr::set_names(nm = CouleursIpr$cli_libelle)
+        ) +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+        legend.position = "bottom"
+    ) +
+    ggplot2::guides(
+        size = ggplot2::guide_legend(
+            order = 1,
+            title.position = "top"
+            ),
+        color = ggplot2::guide_legend(
+            order = 2,
+            title.position = "top",
+             nrow = 2,
+            byrow = TRUE,
+            override.aes = list(size = 5)
+            )
+        )
+)  %>% 
+    cowplot::get_legend() %>% 
+    cowplot::plot_grid() +
+    ggplot2::theme(
+        plot.margin = ggplot2::unit(c(0,0,0,0), 'pt')
+    )
+
+usethis::use_data(LegendeEspeces, LegendeIpr, overwrite = TRUE)
+```
+
+# Métriques IPR
+
+```{r}
+metriques_ipr <- aspe::mef_creer_passerelle() %>%
+    dplyr::select(-lop_id, -pre_id) %>%
+    dplyr::distinct() %>%
+    aspe::mef_ajouter_metriques() %>%
+    aspe::mef_ajouter_libelle() %>%
+    aspe::mef_ajouter_ope_date() %>%
+    dplyr::filter(!is.na(ner)) %>%
+    dplyr::select(-ends_with("observe"), -ends_with("theorique")) %>%
+    tidyr::pivot_longer(cols = ner:dti,
+                 names_to = "metrique",
+                 values_to = "valeur") %>% 
+    dplyr::filter(pop_id %in% ipr$pop_id)
+```
+
+```{r}
+metriques <- 
+    dplyr::bind_rows(
+        # metriques_especes %>% 
+        #     dplyr::mutate(variable = "especes"),
+        metriques_ipr %>% 
+            dplyr::mutate(variable = "ipr")
+    )
+
+usethis::use_data(metriques, overwrite = TRUE)
+```
+
+```{r}
+download.file(
+    url = "https://raw.githubusercontent.com/PascalIrz/aspe/main/R/gg_temp_metriq_grille.R",
+    destfile = "../R/gg_temp_metriq_grille.R",
+    overwrite = TRUE
+)
+```

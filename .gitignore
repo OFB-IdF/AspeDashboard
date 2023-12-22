@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Rdata
+.httr-oauth
+.DS_Store
+data-raw/inst/inst/app/www/widgets/especes/
+data-raw/tables*
+dev
+inst/app/www/widgets/ipr/
+inst/app/www/widgets/especes/
+man

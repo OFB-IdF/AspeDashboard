@@ -1,0 +1,34 @@
+Package: AspeDashboard
+Title: Tableau de bord ASPE
+Version: 0.0.0.9000
+Authors@R: 
+    person("Cédric", "MONDY", , "cedric.mondy@ofb.gouv.fr", role = c("cre", "aut"))
+Description: Tableau de bord interactif permettant d'explorer les données
+    de pêche contenues dans la base de données ASPE
+License: MIT + file LICENSE
+Depends: 
+    R (>= 2.10)
+Imports: 
+    cowplot,
+    dplyr,
+    ggplot2,
+    golem (>= 0.3.1),
+    htmlwidgets,
+    leaflet,
+    leafpop,
+    lubridate,
+    pkgload,
+    progress,
+    purrr,
+    sf,
+    shiny (>= 1.6.0),
+    shiny.semantic,
+    shinydashboardPlus,
+    stringr,
+    tidyr,
+    utils
+Config/testthat/edition: 3
+Encoding: UTF-8
+Language: en-US
+LazyData: true
+RoxygenNote: 7.1.2

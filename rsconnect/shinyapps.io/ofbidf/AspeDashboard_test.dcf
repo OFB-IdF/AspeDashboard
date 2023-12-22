@@ -1,0 +1,13 @@
+name: AspeDashboard_test
+title: AspeDashboard_test
+username:
+account: ofbidf
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 4303244
+bundleId: 4742955
+url: https://ofbidf.shinyapps.io/AspeDashboard_test/
+when: 1624361879.64545
+lastSyncTime: 1624361879.64545
+asMultiple: FALSE
+asStatic: FALSE
