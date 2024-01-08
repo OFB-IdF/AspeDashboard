@@ -74,7 +74,7 @@ mod_carte_op_ui <- function(id){
 #' @importFrom sf st_bbox
 #' @importFrom shiny HTML
 #' @importFrom tidyr drop_na
-mod_carte_op_server <- function(id, departement, bassin, variable){
+mod_carte_op_server <- function(id, departement, bassin, variable, espece){
   moduleServer(
     id, 
     function(input, output, session){
@@ -160,7 +160,8 @@ mod_carte_op_server <- function(id, departement, bassin, variable){
                 dplyr::filter(variable == variable()) %>% 
                 tidyr::drop_na(nb_annees, variable, valeur, couleur, opacite)
             
-            popups <- get(paste0("popups_", variable()))
+            if (variable() != "distribution")
+                popups <- get(paste0("popups_", variable()))
             
             if (nrow(DonneesVariables) == 0) {
                 leaflet::leafletProxy("carte_op") %>%

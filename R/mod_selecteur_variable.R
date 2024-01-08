@@ -15,7 +15,8 @@ mod_selecteur_variable_ui <- function(id){
           label = "Variable d'intérêt",
           choices = c(
               "Composition taxonomique" = "especes",
-              "Indice Poisson Rivière" = "ipr"
+              "Indice Poisson Rivière" = "ipr",
+              "Distribution" = "distribution"
           ),
           multiple = FALSE
       )

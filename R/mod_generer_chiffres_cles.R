@@ -82,7 +82,7 @@ mod_generer_chiffres_cles_server <- function(id, variable, departement, bassin){
     observe({
         req(variable(), departement)
         
-        if (variable() == "especes")
+        if (variable() %in%  c("especes", "distribution"))
             donnees <- captures %>%
                 dplyr::filter(
                     dept_id %in% departement(),
