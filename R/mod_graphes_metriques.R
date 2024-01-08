@@ -21,7 +21,7 @@ mod_graphes_metriques_ui <- function(id){
 #' @noRd 
 #' @importFrom dplyr filter
 #' @importFrom ggplot2 scale_x_continuous theme_minimal theme element_blank
-mod_graphes_metriques_server <- function(id, variable, point){
+mod_graphes_metriques_server <- function(id, variable, point, departement, bassin, espece){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
     int_breaks <- function(x, n = 5){
@@ -39,50 +39,68 @@ mod_graphes_metriques_server <- function(id, variable, point){
             range(int_breaks(x))
         }
     }
- 
+    
     output$graphe <- renderPlot({
-        req(variable, point())
-        
-        SelectionMetriques <- metriques %>% 
-            dplyr::filter(
-                variable == variable(),
-                pop_id == point()
-            )
-        
-        if (nrow(SelectionMetriques) == 0) {
-            NULL
+        req(variable, point, bassin, departement, espece)
+        if (variable() != "distribution" & !is.null(point())) {
+            SelectionMetriques <- metriques %>% 
+                dplyr::filter(
+                    variable == variable(),
+                    pop_id == point()
+                )
+            
+            if (nrow(SelectionMetriques) == 0) {
+                NULL
+            } else {
+                SelectionMetriques %>% 
+                    gg_temp_metriq_grille(
+                        df_metriques = .,
+                        var_id_sta = pop_libelle,
+                        var_nom_metrique = metrique,
+                        var_valeur_metrique = valeur,
+                        nb_colonnes = 2,
+                        orientation = "v"
+                    ) +
+                    ggplot2::scale_x_continuous(
+                        breaks = int_breaks,
+                        limits = int_limits
+                    ) +
+                    ggplot2::labs(
+                        title = SelectionMetriques %>% 
+                            dplyr::distinct(pop_libelle, ope_id) %>% 
+                            dplyr::mutate(
+                                titre = paste0(
+                                    pop_libelle, " (", ope_id, ")"
+                                )
+                            ) %>% 
+                            dplyr::pull(titre)
+                    ) +
+                    ggplot2::theme_minimal() +
+                    ggplot2::theme(
+                        panel.grid.major.x = ggplot2::element_blank(),
+                        panel.grid.minor.x = ggplot2::element_blank(),
+                        panel.grid.minor.y = ggplot2::element_blank(),
+                        plot.title = ggplot2::element_text(face = "bold")
+                    )
+            }
         } else {
-            SelectionMetriques %>% 
-                gg_temp_metriq_grille(
-                    df_metriques = .,
-                    var_id_sta = pop_libelle,
-                    var_nom_metrique = metrique,
-                    var_valeur_metrique = valeur,
-                    nb_colonnes = 2,
-                    orientation = "v"
-                ) +
+            graphe_synthese_espece(
+                captures = AspeDashboard::captures,
+                bassins = bassin(),
+                departements = departement(),
+                espece = espece()
+            ) +
                 ggplot2::scale_x_continuous(
                     breaks = int_breaks,
                     limits = int_limits
-                ) +
-                ggplot2::labs(
-                    title = SelectionMetriques %>% 
-                        dplyr::distinct(pop_libelle, ope_id) %>% 
-                        dplyr::mutate(
-                            titre = paste0(
-                                pop_libelle, " (", ope_id, ")"
-                            )
-                        ) %>% 
-                        dplyr::pull(titre)
-                ) +
-                ggplot2::theme_minimal() +
+                )  +
                 ggplot2::theme(
-                    panel.grid.major.x = ggplot2::element_blank(),
-                    panel.grid.minor.x = ggplot2::element_blank(),
-                    panel.grid.minor.y = ggplot2::element_blank(),
-                    plot.title = ggplot2::element_text(face = "bold")
+                    strip.text = ggplot2::element_text(hjust = 0, size = 12, face = "bold"),
+                    axis.text = ggplot2::element_text(size = 10),
+                    legend.text = ggplot2::element_text(size = 10)
                 )
         }
+
         
     })
     

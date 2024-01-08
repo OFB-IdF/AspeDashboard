@@ -42,7 +42,8 @@ app_server <- function( input, output, session ) {
         variable = SelectionVariable,
         departement = SelectionDepartement,
         bassin = SelectionBassin,
-        point = SelectionPoint
+        point = SelectionPoint,
+        espece = SelectionEspece
     )
 
     # onSessionEnded(fun = function() {
