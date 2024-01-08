@@ -25,7 +25,8 @@ app_server <- function( input, output, session ) {
         )
     SelectionEspece <- mod_selecteur_espece_server(
         id = "espece",
-        variable = SelectionVariable
+        variable = SelectionVariable, 
+        bassin = SelectionBassin, departements = SelectionDepartement
     )
 
     SelectionPoint <- mod_carte_op_server(

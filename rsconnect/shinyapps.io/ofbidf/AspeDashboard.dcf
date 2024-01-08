@@ -1,12 +1,13 @@
 name: AspeDashboard
 title: AspeDashboard
-username:
+username: ofbidf
 account: ofbidf
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4271815
-bundleId:
+bundleId: 8119833
 url: https://ofbidf.shinyapps.io/AspeDashboard/
+version: 1
 asMultiple: FALSE
 asStatic: FALSE
 ignoredFiles: data-raw|dev

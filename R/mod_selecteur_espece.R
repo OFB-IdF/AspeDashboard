@@ -15,19 +15,27 @@ mod_selecteur_espece_ui <- function(id){
 #' selecteur_variable Server Functions
 #'
 #' @noRd 
-mod_selecteur_espece_server <- function(id, variable){
+mod_selecteur_espece_server <- function(id, variable, bassin, departements){
     moduleServer( id, function(input, output, session){
         ns <- session$ns
         
         observe({
-                req(variable)
+                req(variable, bassin, departements)
+            
+            liste_especes <- carte_operations %>% 
+                dplyr::filter(dh_libelle %in% bassin()) %>% 
+                dplyr::filter(dept_id %in% departements()) %>% 
+                dplyr::distinct(esp_code_alternatif) %>% 
+                tidyr::drop_na() %>% 
+                dplyr::arrange(esp_code_alternatif) %>% 
+                dplyr::pull(esp_code_alternatif)
                 
                 if (variable() == "distribution") {
                     output$espece <- renderUI({
                         selectInput(
                             ns("espece"),
                             "Espèce",
-                            sort(names(AspeDashboard::codes_especes))
+                            c("Choisir une espèce: ", liste_especes)
                         )
                     })
                 } else {

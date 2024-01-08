@@ -107,11 +107,12 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
     output$legende <- renderPlot({
         req(variable)
         
-        if(variable() == "ipr") {
-            LegendeIpr
-        } else {
-            LegendeEspeces
-        }
+        switch(
+            variable(),
+            especes = LegendeEspeces,
+            ipr = LegendeIpr,
+            distribution = LegendeDistribution
+        )
     }
     )
     
@@ -135,12 +136,12 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
                         dept_id %in% departement(),
                         dh_libelle %in% bassin()
                         ) %>% 
+                    dplyr::distinct(pop_libelle) %>% 
                     dplyr::arrange(pop_libelle) %>% 
                     dplyr::pull(pop_libelle)
             ),
             server = TRUE
         )
-        
         
         BboxMap <- sf::st_bbox(DataMap)
         
@@ -160,30 +161,63 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
                 dplyr::filter(variable == variable()) %>% 
                 tidyr::drop_na(nb_annees, variable, valeur, couleur, opacite)
             
-            if (variable() != "distribution")
-                popups <- get(paste0("popups_", variable()))
             
             if (nrow(DonneesVariables) == 0) {
                 leaflet::leafletProxy("carte_op") %>%
                     leaflet::clearMarkers(map = .)
             } else {
-                leaflet::leafletProxy("carte_op") %>%
-                    leaflet::clearMarkers(map = .) %>%
-                    leaflet::addCircleMarkers(
-                        map = .,
-                        data = DonneesVariables,
-                        layerId = ~pop_id,
-                        radius = ~radius_pal(nb_annees),
-                        fillColor = ~identity(couleur),
-                        stroke = TRUE,
-                        color = "black",
-                        weight = 2,
-                        opacity = ~identity(opacite),
-                        fillOpacity = .75,
-                        label = ~lapply(hover, shiny::HTML),
-                        popup = unname(popups$popups[DonneesVariables$pop_id])
-                    ) 
+                if (variable() != "distribution") {
+                    popups <- get(paste0("popups_", variable()))
+                    
+                    leaflet::leafletProxy("carte_op") %>%
+                        leaflet::clearMarkers(map = .) %>%
+                        leaflet::addCircleMarkers(
+                            map = .,
+                            data = DonneesVariables,
+                            layerId = ~pop_id,
+                            radius = ~radius_pal(nb_annees),
+                            fillColor = ~identity(couleur),
+                            stroke = TRUE,
+                            color = "black",
+                            weight = 2,
+                            opacity = ~identity(opacite),
+                            fillOpacity = .75,
+                            label = ~lapply(hover, shiny::HTML),
+                            popup = unname(popups$popups[DonneesVariables$pop_id])
+                        ) 
+                } else {
+                    observe({
+                        req(espece())
+                        
+                        DonneesVariables <- DonneesVariables %>% 
+                            dplyr::filter(esp_code_alternatif == espece())
+                        
+                        if (nrow(DonneesVariables) == 0) {
+                            leaflet::leafletProxy("carte_op") %>%
+                                leaflet::clearMarkers(map = .)
+                        } else {
+                            leaflet::leafletProxy("carte_op") %>%
+                                leaflet::clearMarkers(map = .) %>%
+                                leaflet::addCircleMarkers(
+                                    map = .,
+                                    data = DonneesVariables,
+                                    layerId = ~pop_id,
+                                    radius = ~radius_pal(nb_annees),
+                                    fillColor = "lightgrey",
+                                    stroke = TRUE,
+                                    color = "black",
+                                    weight = 2,
+                                    opacity = ~identity(opacite),
+                                    fillOpacity = .75,
+                                    label = ~lapply(hover, shiny::HTML)
+                                ) 
+                        }
+                        
+                    })
+                    
+                }
             }
+
         })
         
         observe({
