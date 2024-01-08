@@ -325,7 +325,7 @@ if (generer_popups) {
          width = .96
          )
 
-usethis::use_data(plots_especes, overwrite = TRUE)
+# usethis::use_data(plots_especes, overwrite = TRUE)
 }
 
 ```
@@ -373,7 +373,7 @@ if (generer_popups) {
     purrr::set_names(unique(especes_sites$pop_libelle))
 
 
-usethis::use_data(plots_distribution, overwrite = TRUE)
+# usethis::use_data(plots_distribution, overwrite = TRUE)
 }
 
 ```
@@ -424,7 +424,7 @@ if (generer_popups) {
         ) %>% 
     purrr::reduce(.f = c)
 
-usethis::use_data(plots_ipr, overwrite = TRUE)
+# usethis::use_data(plots_ipr, overwrite = TRUE)
 }
 
 ```
