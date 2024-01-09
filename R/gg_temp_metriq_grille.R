@@ -26,7 +26,7 @@
 #' @export
 #'
 #' @importFrom ggplot2 ggplot aes coord_cartesian geom_line geom_point facet_grid facet_wrap labs guides theme element_text
-#' @importFrom dplyr enquo filter mutate vars
+#' @importFrom dplyr enquo filter mutate
 #' @importFrom stringr str_wrap
 #'
 #' @examples

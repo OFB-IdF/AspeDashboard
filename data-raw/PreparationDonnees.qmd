@@ -499,13 +499,13 @@ AspeDashboard::archiver_popups(
 
 ```{r}
 
-file.copy(
+if (generer_popups) {
+    file.copy(
     from = "../inst/app/www/style.css.bkp",
     to = "../inst/app/www/style.css",
     overwrite = TRUE
 )
 
-if (generer_popups) {
     cat(
     popups_especes$css,
     file = "../inst/app/www/style.css",
@@ -576,8 +576,9 @@ SyntheseDistributions <- captures %>%
     dplyr::group_by(pop_id, esp_code_alternatif) %>% 
     dplyr::summarise(
         nb_annees = dplyr::n_distinct(annee[effectif > 0]),
+        nb_annees_tot = dplyr::n_distinct(annee),
         variable = "distribution",
-        valeur = as.character(round(mean(effectif), 1)),
+        valeur = as.character(round(mean(effectif[effectif > 0]), 1)),
         derniere_annee = max(annee[effectif > 0]),
         donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5,
         .groups = "drop"
@@ -621,7 +622,10 @@ carte_operations <- dplyr::bind_rows(
             "<em>", dept_libelle, " (", reg_libelle, ")</em><br>",
             nb_annees, " année",
             ifelse(as.numeric(nb_annees) > 1 , "s", ""),
-            ifelse(variable == "distribution", " de détection", " de suivi"),
+            ifelse(variable == "distribution",
+                   paste0(" de détection (sur ", nb_annees_tot, ")"),
+                   " de suivi"
+                   ),
             "<br>",
             dplyr::case_when(
                 variable == "especes" ~ paste0(
@@ -629,7 +633,7 @@ carte_operations <- dplyr::bind_rows(
                     ifelse(as.numeric(valeur) > 1, "s", "")
                     ),
                 variable == "ipr" ~ paste0(valeur, " état"),
-                variable == "distribution" ~ paste0("Effectif moyen: ", valeur)
+                variable == "distribution" ~ paste0("Effectif moyen quand capturée: ", valeur)
                 ),
             ifelse(variable == "distribution", "", 
                    paste0(" (", derniere_annee, ")")
