@@ -84,11 +84,12 @@ mod_graphes_metriques_server <- function(id, variable, point, departement, bassi
                     )
             }
         } else {
-            graphe_synthese_espece(
+            graphe <- graphe_synthese_espece(
                 captures = AspeDashboard::captures,
                 bassins = bassin(),
                 departements = departement(),
-                espece = espece()
+                espece = espece(),
+                station = point()
             ) +
                 ggplot2::scale_x_continuous(
                     breaks = int_breaks,
@@ -99,6 +100,8 @@ mod_graphes_metriques_server <- function(id, variable, point, departement, bassi
                     axis.text = ggplot2::element_text(size = 10),
                     legend.text = ggplot2::element_text(size = 10)
                 )
+            
+            graphe
         }
 
         
