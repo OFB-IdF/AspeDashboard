@@ -19,6 +19,12 @@ mod_carte_op_ui <- function(id){
             right: 20px;
           }
           
+          .reset-station {
+            position: absolute;
+            bottom: 10px;
+            right: 0px;
+          }
+          
            .leaflet {
                 margin-top:0px;
            }
@@ -45,14 +51,17 @@ mod_carte_op_ui <- function(id){
             selectizeInput(
                 inputId = ns("station"),
                 label = "",
-                # choices = c(
-                #     "Localiser une station" = "",
-                #     sort(unique(pop_geo$pop_libelle))
-                # ),
                 choices = c(
                     "Localiser un point de prélèvement" = ""
                 ),
                 multiple = FALSE
+            )
+        ),
+        tags$div(
+            class = "reset-station",
+            actionButton(
+                inputId = ns("reset"),
+                label = "Désélectionner station"
             )
         ),
         leaflet::leafletOutput(
@@ -79,6 +88,8 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
     id, 
     function(input, output, session){
     ns <- session$ns
+    
+    SelectionPoint <- reactiveValues(clickedMarker=NULL)
     
      radius_pal <- function(x) {
         approx(
@@ -117,13 +128,25 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
     )
     
     observe({
-        req(departement, bassin)
+        req(departement, bassin, variable, espece)
         
-        DataMap <- carte_operations %>%
+        ChoixEspece <- ifelse(
+            variable() != "distribution" | is.null(espece()), "", espece()
+        )
+        
+        DataMap <- carte_operations %>% 
+            dplyr::mutate(
+                esp_code_alternatif = stringr::str_replace_na(
+                    esp_code_alternatif, ""
+                )
+            ) %>%
             dplyr::filter(
                 dept_id %in% departement(),
-                dh_libelle %in% bassin()
-                )
+                dh_libelle %in% bassin(),
+                variable == variable(),
+                esp_code_alternatif == ChoixEspece
+                ) %>% 
+            tidyr::drop_na(nb_annees, variable, valeur, couleur, opacite)
         
         updateSelectizeInput(
             session = session,
@@ -154,71 +177,37 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
                 lat2 = BboxMap[["ymax"]]
             )
         
-        observe({
-            req(variable)
+        popups <- switch(
+            variable(),
+            especes = unname(popups_especes$popups[DataMap$pop_id]),
+            ipr = unname(popups_ipr$popups[DataMap$pop_id]),
+            distribution = NULL
+        )
+        
+        if (nrow(DataMap) == 0) {
+            SelectionPoint$clickedMarker <- NULL
             
-            DonneesVariables <- DataMap %>% 
-                dplyr::filter(variable == variable()) %>% 
-                tidyr::drop_na(nb_annees, variable, valeur, couleur, opacite)
+            leaflet::leafletProxy("carte_op") %>%
+                leaflet::clearMarkers(map = .)
+        } else {
             
-            
-            if (nrow(DonneesVariables) == 0) {
-                leaflet::leafletProxy("carte_op") %>%
-                    leaflet::clearMarkers(map = .)
-            } else {
-                if (variable() != "distribution") {
-                    popups <- get(paste0("popups_", variable()))
-                    
-                    leaflet::leafletProxy("carte_op") %>%
-                        leaflet::clearMarkers(map = .) %>%
-                        leaflet::addCircleMarkers(
-                            map = .,
-                            data = DonneesVariables,
-                            layerId = ~pop_id,
-                            radius = ~radius_pal(nb_annees),
-                            fillColor = ~identity(couleur),
-                            stroke = TRUE,
-                            color = "black",
-                            weight = 2,
-                            opacity = ~identity(opacite),
-                            fillOpacity = .75,
-                            label = ~lapply(hover, shiny::HTML),
-                            popup = unname(popups$popups[DonneesVariables$pop_id])
-                        ) 
-                } else {
-                    observe({
-                        req(espece())
-                        
-                        DonneesVariables <- DonneesVariables %>% 
-                            dplyr::filter(esp_code_alternatif == espece())
-                        
-                        if (nrow(DonneesVariables) == 0) {
-                            leaflet::leafletProxy("carte_op") %>%
-                                leaflet::clearMarkers(map = .)
-                        } else {
-                            leaflet::leafletProxy("carte_op") %>%
-                                leaflet::clearMarkers(map = .) %>%
-                                leaflet::addCircleMarkers(
-                                    map = .,
-                                    data = DonneesVariables,
-                                    layerId = ~pop_id,
-                                    radius = ~radius_pal(nb_annees),
-                                    fillColor = "lightgrey",
-                                    stroke = TRUE,
-                                    color = "black",
-                                    weight = 2,
-                                    opacity = ~identity(opacite),
-                                    fillOpacity = .75,
-                                    label = ~lapply(hover, shiny::HTML)
-                                ) 
-                        }
-                        
-                    })
-                    
-                }
-            }
-
-        })
+            leaflet::leafletProxy("carte_op") %>%
+            leaflet::clearMarkers(map = .) %>%
+            leaflet::addCircleMarkers(
+                map = .,
+                data = DataMap,
+                layerId = ~pop_id,
+                radius = ~radius_pal(nb_annees),
+                fillColor = ~identity(couleur),
+                stroke = TRUE,
+                color = "black",
+                weight = 2,
+                opacity = ~identity(opacite),
+                fillOpacity = .75,
+                label = ~lapply(hover, shiny::HTML),
+                popup = popups
+            ) 
+        }
         
         observe({
 
@@ -252,20 +241,18 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
         })
     })
     
-
-    
-    SelectionPoint <- reactiveValues(clickedMarker=NULL)
-    
     # observe the marker click info and print to console when it is changed.
     observeEvent(input$carte_op_marker_click,{
         SelectionPoint$clickedMarker <- input$carte_op_marker_click$id
     })
     
-    observeEvent(input$carte_op_click,{
+    observeEvent(input$reset, {
         SelectionPoint$clickedMarker <- NULL
-        })
+    })
     
-    reactive(SelectionPoint$clickedMarker)
+    reactive({
+        SelectionPoint$clickedMarker
+        })
   })
 }
     

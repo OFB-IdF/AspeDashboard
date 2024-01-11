@@ -35,7 +35,7 @@ mod_selecteur_espece_server <- function(id, variable, bassin, departements){
                         selectInput(
                             ns("espece"),
                             "Espèce",
-                            c("Choisir une espèce: ", liste_especes)
+                            c("Choisir une espèce: " = "", liste_especes)
                         )
                     })
                 } else {
