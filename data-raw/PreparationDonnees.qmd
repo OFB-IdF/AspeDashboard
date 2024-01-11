@@ -598,10 +598,6 @@ color_pal_ipr <- leaflet::colorFactor(
                 levels = CouleursIpr$cli_libelle
             )
 
-color_pal_distribution <- leaflet::colorNumeric(
-    palette = "turbo",
-    domain = log10(as.numeric(SyntheseDistributions$valeur)+1)
-)
 ```
 
 ```{r}
@@ -642,7 +638,7 @@ carte_operations <- dplyr::bind_rows(
         couleur = dplyr::case_when(
             variable == "especes" ~ color_pal_esp(log10(as.numeric(valeur)+1)),
             variable == "ipr" ~ color_pal_ipr(valeur),
-            variable == "distribution" ~ color_pal_distribution(log10(as.numeric(valeur)+1))
+            variable == "distribution" ~ "lightgrey"
         ),
         opacite = ifelse(donnees_recentes, 1, .25)
         ) %>%
