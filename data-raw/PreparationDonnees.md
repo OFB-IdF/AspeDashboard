@@ -1,6 +1,10 @@
 Préparation des données ASPE
 ================
 
+``` r
+generer_popups <- FALSE
+```
+
 La préparation des données reprend les étapes [décrites
 ici](https://github.com/PascalIrz/aspe_demo/blob/main/scripts/10_preparation_donnees.Rmd).
 
@@ -114,7 +118,14 @@ Les données utilisées sont les données du dump sql de la base importées
 dans R mais sans autre pré-traitement.
 
 ``` r
-load("tables_sauf_mei_2023_11_08_15_32_42.236211.RData")
+fichier_dump <- "tables_sauf_mei_2023_11_08_15_32_42.236211.RData"
+load(fichier_dump)
+
+date_export <- fichier_dump %>% 
+    stringr::str_extract(pattern = "\\d{4}_\\d{2}_\\d{2}") %>% 
+    lubridate::as_date(format = "%Y_%m_%d")
+
+usethis::use_data(date_export)
 ```
 
 ## Sélection des données de capture
@@ -307,7 +318,8 @@ DimensionsPopups <- list(
 ## Composition taxonomique
 
 ``` r
-plots_especes <- captures %>% 
+if (generer_popups) {
+    plots_especes <- captures %>% 
     # dplyr::filter(pop_id == pop_id[100]) %>% 
      aspe::gg_temp_peuplement(
          interactif = TRUE,
@@ -317,13 +329,60 @@ plots_especes <- captures %>%
          width = .96
          )
 
-usethis::use_data(plots_especes, overwrite = TRUE)
+# usethis::use_data(plots_especes, overwrite = TRUE)
+}
+```
+
+## Abondances espèce par espèce
+
+``` r
+especes_sites <- captures %>% 
+    dplyr::distinct(pop_libelle, esp_code_alternatif) %>% 
+    dplyr::filter(pop_libelle %in% sample(unique(captures$pop_libelle), 100))
+```
+
+``` r
+if (generer_popups) {
+    plots_distribution <- purrr::map(
+    .x = unique(especes_sites$pop_libelle),
+    .f = function(x) {
+        especes.x <- captures %>% 
+                dplyr::filter(pop_libelle == x) %>% 
+                dplyr::distinct(esp_code_alternatif) %>% 
+                dplyr::pull(esp_code_alternatif)
+        purrr::map(
+            .x = especes.x,
+            .f = function(y) {
+                gg_temp_ab_esp(
+                    df = captures,
+                    var_espece = esp_code_alternatif, 
+                    var_abondance = effectif, 
+                    var_annee = annee,
+                    var_site = pop_libelle,
+                    var_proto = pro_libelle,
+                    sel_espece = y,
+                    sel_site = x,
+                    interactif = TRUE,
+                    largeur = 6,
+                    hauteur = 4
+                )
+                }
+        ) %>% 
+            purrr::set_names(especes.x)
+    },
+    .progress = TRUE) %>% 
+    purrr::set_names(unique(especes_sites$pop_libelle))
+
+
+# usethis::use_data(plots_distribution, overwrite = TRUE)
+}
 ```
 
 ## IPR
 
 ``` r
-plots_ipr <- ipr %>% 
+if (generer_popups) {
+    plots_ipr <- ipr %>% 
     dplyr::group_by(sup_500m) %>% 
     dplyr::group_split() %>% 
     purrr::map(
@@ -365,7 +424,8 @@ plots_ipr <- ipr %>%
         ) %>% 
     purrr::reduce(.f = c)
 
-usethis::use_data(plots_ipr, overwrite = TRUE)
+# usethis::use_data(plots_ipr, overwrite = TRUE)
+}
 ```
 
 ## Finalisation popups
@@ -378,10 +438,9 @@ usethis::use_data(codes_especes, overwrite = TRUE)
 ```
 
 ``` r
-dir.create("inst/app/www/widgets", recursive = TRUE)
-```
+if (generer_popups) {
+    dir.create("inst/app/www/widgets", recursive = TRUE)
 
-``` r
 popups_especes <- AspeDashboard::prep_sauver_popups(
     # plots = plots_especes[seq(10)],
     plots = plots_especes,
@@ -405,9 +464,7 @@ file.copy(
     )
 
 usethis::use_data(popups_especes, overwrite = TRUE)
-```
 
-``` r
  popups_ipr <- AspeDashboard::prep_sauver_popups(
      # plots = plots_ipr[names(plots_ipr) %in% names(plots_especes[seq(10)])],
      plots = plots_ipr,
@@ -431,26 +488,27 @@ AspeDashboard::archiver_popups(
      )
 
  usethis::use_data(popups_ipr, overwrite = TRUE)
-```
-
-``` r
-unlink("inst", recursive = TRUE)
+ 
+ unlink("inst", recursive = TRUE)
+}
 ```
 
 ## CSS
 
 ``` r
-file.copy(
+if (generer_popups) {
+    file.copy(
     from = "../inst/app/www/style.css.bkp",
     to = "../inst/app/www/style.css",
     overwrite = TRUE
 )
 
-cat(
+    cat(
     popups_especes$css,
     file = "../inst/app/www/style.css",
     append = TRUE
     )
+}
 ```
 
 # Carte
@@ -484,6 +542,42 @@ SyntheseIpr <-  ipr %>%
                 donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5,
                 .groups = "drop"
             )
+
+SyntheseDistributions <- captures %>% 
+    dplyr::mutate(pop_id = as.character(pop_id)) %>%
+    dplyr::group_by(pop_id, annee, esp_code_alternatif) %>% 
+    dplyr::summarise(effectif = sum(effectif), .groups = "drop") %>% 
+    # dplyr::filter(pop_id == unique(pop_id)[1]) -> df
+    dplyr::group_by(pop_id) %>% 
+    dplyr::group_split(.keep = TRUE) %>%  
+    purrr::map(
+        function(df) {
+            df %>% 
+                tidyr::pivot_wider(
+                    id_cols = c(pop_id, annee),
+                    names_from = esp_code_alternatif,
+                    values_from = effectif,
+                    values_fill = 0
+                ) %>% 
+                tidyr::pivot_longer(
+                    cols = -c(pop_id, annee),
+                    names_to = "esp_code_alternatif",
+                    values_to = "effectif"
+                )
+        },
+        .progress = TRUE
+    ) %>% 
+     purrr::list_rbind() %>% 
+    dplyr::group_by(pop_id, esp_code_alternatif) %>% 
+    dplyr::summarise(
+        nb_annees = dplyr::n_distinct(annee[effectif > 0]),
+        nb_annees_tot = dplyr::n_distinct(annee),
+        variable = "distribution",
+        valeur = as.character(round(mean(effectif[effectif > 0]), 1)),
+        derniere_annee = max(annee[effectif > 0]),
+        donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5,
+        .groups = "drop"
+    )
 ```
 
 ``` r
@@ -507,33 +601,44 @@ carte_operations <- dplyr::bind_rows(
         dplyr::left_join(SyntheseEspeces, by = "pop_id"),
     pop_geo %>% 
         dplyr::mutate(pop_id = as.character(pop_id)) %>% 
-        dplyr::left_join(SyntheseIpr, by = "pop_id")
+        dplyr::left_join(SyntheseIpr, by = "pop_id"),
+    pop_geo %>% 
+        dplyr::mutate(pop_id = as.character(pop_id)) %>% 
+        dplyr::left_join(SyntheseDistributions, by = "pop_id")
     ) %>% 
     dplyr::mutate(
         hover = paste0(
             "<b>", pop_libelle, " (", pop_id, ")</b><br>",
             "<em>", dept_libelle, " (", reg_libelle, ")</em><br>",
             nb_annees, " année",
-            ifelse(nb_annees > 1 , "s", ""),
-            " de suivi<br>",
+            ifelse(as.numeric(nb_annees) > 1 , "s", ""),
+            ifelse(variable == "distribution",
+                   paste0(" de détection (sur ", nb_annees_tot, ")"),
+                   " de suivi"
+                   ),
+            "<br>",
             dplyr::case_when(
                 variable == "especes" ~ paste0(
                     valeur, " espèce",
                     ifelse(as.numeric(valeur) > 1, "s", "")
                     ),
-                variable == "ipr" ~ paste0(valeur, " état")
+                variable == "ipr" ~ paste0(valeur, " état"),
+                variable == "distribution" ~ paste0("Effectif moyen quand capturée: ", valeur)
                 ),
-            " (", derniere_annee, ")"
+            ifelse(variable == "distribution", "", 
+                   paste0(" (", derniere_annee, ")")
+                   )
             ),
         couleur = dplyr::case_when(
             variable == "especes" ~ color_pal_esp(log10(as.numeric(valeur)+1)),
-            variable == "ipr" ~ color_pal_ipr(valeur)
+            variable == "ipr" ~ color_pal_ipr(valeur),
+            variable == "distribution" ~ "lightgrey"
         ),
         opacite = ifelse(donnees_recentes, 1, .25)
         ) %>%
     sf::st_transform(4326) %>% 
     dplyr::select(
-        pop_id, dept_id, dh_libelle,
+        pop_id, dept_id, dh_libelle, esp_code_alternatif,
         nb_annees, variable, valeur, hover, couleur, opacite
         ) 
 
@@ -576,37 +681,38 @@ LegendeEspeces <- (
 
 LegendeIpr <- (
     carte_operations %>% 
-    dplyr::filter(variable == "ipr") %>% 
-    ggplot2::ggplot() +
-    ggplot2::geom_sf(
-        mapping = ggplot2::aes(
-            color = valeur,
-            size = nb_annees
-        )
-    ) +
-    ggplot2::scale_radius(name = "Nombre d'années de suivi\n") +
-    ggplot2::scale_color_manual(
-        name = "Classe de qualité IPR\nlors de la dernière pêche",
-        values = CouleursIpr %>% 
-            dplyr::pull(classe_couleur) %>% 
-            purrr::set_names(nm = CouleursIpr$cli_libelle)
-        ) +
-    ggplot2::theme_void() +
-    ggplot2::theme(
-        legend.position = "bottom"
-    ) +
-    ggplot2::guides(
-        size = ggplot2::guide_legend(
-            order = 1,
-            title.position = "top"
-            ),
-        color = ggplot2::guide_legend(
-            order = 2,
-            title.position = "top",
-             nrow = 2,
-            byrow = TRUE,
-            override.aes = list(size = 5)
+        dplyr::filter(variable == "ipr") %>% 
+        ggplot2::ggplot() +
+        ggplot2::geom_sf(
+            mapping = ggplot2::aes(
+                color = valeur,
+                size = nb_annees
             )
+        ) +
+        ggplot2::scale_radius(name = "Nombre d'années de suivi\n") +
+        ggplot2::scale_color_manual(
+            name = "Classe de qualité IPR\nlors de la dernière pêche",
+            values = CouleursIpr %>% 
+                dplyr::pull(classe_couleur) %>% 
+                purrr::set_names(nm = CouleursIpr$cli_libelle),
+            breaks = CouleursIpr$cli_libelle
+            ) +
+        ggplot2::theme_void() +
+        ggplot2::theme(
+            legend.position = "bottom"
+        ) +
+        ggplot2::guides(
+            size = ggplot2::guide_legend(
+                order = 1,
+                title.position = "top"
+                ),
+            color = ggplot2::guide_legend(
+                order = 2,
+                title.position = "top",
+                 nrow = 2,
+                byrow = TRUE,
+                override.aes = list(size = 5)
+                )
         )
 )  %>% 
     cowplot::get_legend() %>% 
@@ -615,7 +721,36 @@ LegendeIpr <- (
         plot.margin = ggplot2::unit(c(0,0,0,0), 'pt')
     )
 
-usethis::use_data(LegendeEspeces, LegendeIpr, overwrite = TRUE)
+LegendeDistribution <- (
+    carte_operations %>% 
+        dplyr::filter(variable == "distribution") %>% 
+        ggplot2::ggplot() +
+        ggplot2::geom_sf(
+            colour = "lightgrey",
+            mapping = ggplot2::aes(
+                size = nb_annees
+            )
+        ) +
+        ggplot2::scale_radius(name = "Nombre d'années où l'espèce\nest contactée", limits = c(3, 10)) +
+    ggplot2::theme_void() +
+    ggplot2::theme(
+        legend.position = "bottom"
+    ) +
+    ggplot2::guides(
+        size = ggplot2::guide_legend(
+            order = 1,
+            title.position = "top"
+            )
+        )
+    )  %>% 
+    cowplot::get_legend() %>% 
+    cowplot::plot_grid() +
+    ggplot2::theme(
+        plot.margin = ggplot2::unit(c(0,0,0,0), 'pt')
+    ) 
+
+
+usethis::use_data(LegendeEspeces, LegendeIpr, LegendeDistribution, overwrite = TRUE)
 ```
 
 # Métriques IPR

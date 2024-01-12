@@ -123,7 +123,14 @@ usethis::use_data(administratif, overwrite = TRUE)
 Les données utilisées sont les données du dump sql de la base importées dans R mais sans autre pré-traitement.
 
 ```{r}
-load("tables_sauf_mei_2023_11_08_15_32_42.236211.RData")
+fichier_dump <- "tables_sauf_mei_2023_11_08_15_32_42.236211.RData"
+load(fichier_dump)
+
+date_export <- fichier_dump %>% 
+    stringr::str_extract(pattern = "\\d{4}_\\d{2}_\\d{2}") %>% 
+    lubridate::as_date(format = "%Y_%m_%d")
+
+usethis::use_data(date_export)
 ```
 
 ## Sélection des données de capture

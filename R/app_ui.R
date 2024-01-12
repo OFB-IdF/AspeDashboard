@@ -30,6 +30,10 @@ app_ui <- function(request) {
           style = 'position:absolute; bottom:0; right:0; padding:0px; width:800px;color:#99D7F7'
           )
         ),
+      div(
+          textOutput("date_export"),
+          style = "position:absolute; top:30; left:10;"
+      ),
       sidebarLayout(
         sidebarPanel = sidebarPanel(
           width = 2,

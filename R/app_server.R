@@ -45,6 +45,8 @@ app_server <- function( input, output, session ) {
         point = SelectionPoint,
         espece = SelectionEspece
     )
+    
+    output$date_export <- renderText(paste0("Export: ", as.character(date_export)))
 
     # onSessionEnded(fun = function() {
     #     unlink("inst/app/www/widgets/especes", recursive = TRUE)
