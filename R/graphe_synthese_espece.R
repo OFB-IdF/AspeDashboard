@@ -64,7 +64,7 @@ graphe_synthese_espece <- function(captures, bassins, departements, espece, stat
         dplyr::mutate(
             metrique = labels_metriques[metrique] %>% 
                 factor(levels = labels_metriques),
-            pop_id = station
+            pop_id = as.character(station)
         ) %>% 
         (function(df) {
             if (nrow(df) > 0) {
@@ -94,17 +94,17 @@ graphe_synthese_espece <- function(captures, bassins, departements, espece, stat
     
     ggplot2::ggplot(
             mapping = ggplot2::aes(
-                x = annee, y = valeurs
+                x = annee, y = valeurs, fill = presence
             )
         ) +
         ggplot2::geom_col(
             data = data_n_stations,
-            mapping = ggplot2::aes(fill = presence),
             colour = "darkgrey"
         ) +
         ggplot2::geom_point(
             data = data_station,
-            mapping = ggplot2::aes(colour = label)
+            mapping = ggplot2::aes(colour = label),
+            shape = 21, size = 3
             ) +
         ggplot2::facet_wrap(facets = ggplot2::vars(metrique), ncol = 1, scales = "free_y") +
         ggplot2::scale_fill_manual(
