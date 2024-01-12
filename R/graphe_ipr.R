@@ -21,7 +21,7 @@ graphe_ipr <- function(donnees) {
             by = c("cli_libelle" = "valeur")
         ) %>% 
         dplyr::mutate(
-            name = labels[name]
+            name = unname(labels[name])
         ) %>% 
         ggplot2::ggplot(
             mapping = ggplot2::aes(
