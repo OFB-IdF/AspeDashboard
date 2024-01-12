@@ -39,19 +39,38 @@ mod_panneau_droit_server <- function(id, variable, departement, bassin, point, e
             espece = espece
         )
         
-        if (variable() != "distribution") {
-            if (is.null(point())) {
-                mod_generer_chiffres_cles_ui(id = ns("chiffres_cles"))
-            } else {
-                mod_graphes_metriques_ui(id = ns("graphe_metrique"))
-            }
-            
+        mod_graphe_ipr_server(
+            id = "graphe_ipr",
+            departement = departement,
+            bassin = bassin
+        )
+        
+        if (variable() == "especes") {
+            mod_generer_chiffres_cles_ui(id = ns("chiffres_cles"))
         } else {
-            mod_graphes_metriques_ui(id = ns("graphe_metrique"))
+            if (variable() == "ipr") {
+                if (is.null(point())) {
+                    tagList(
+                        mod_generer_chiffres_cles_ui(id = ns("chiffres_cles")),
+                        br(),
+                        mod_graphe_ipr_ui(id = ns("graphe_ipr"))
+                    )
+                    
+                } else {
+                    tagList(
+                        mod_graphes_metriques_ui(id = ns("graphe_metrique"))
+                    )
+                    
+                }
+            } else {
+                if (variable() == "distribution") {
+                    mod_graphes_metriques_ui(id = ns("graphe_metrique"))
+                }
+            }
         }
+        
     })
     
- 
   })
 }
     

@@ -11,21 +11,6 @@
 mod_generer_chiffres_cles_ui <- function(id){
     ns <- NS(id)
     
-    CardStyle <- "
-  min-height: 45px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: left;
-  text-align: left;
-  padding-top: 5px;
-  padding-bottom:5px;
-  padding-left: 10px;
-  margin-top: 20px;
-  margin-bottom: -10px;
-  background-color: #8DB6CD;
-  border-radius: 5px;
-  "
     
     fluidPage(
         tags$head(
@@ -44,29 +29,7 @@ mod_generer_chiffres_cles_ui <- function(id){
             }
             "
         ))),
-        div(),
-        shiny.semantic::cards(
-            class = "one",
-            shiny.semantic::card(htmlOutput(ns("un")), style = CardStyle),
-            shiny.semantic::card(htmlOutput(ns("deux")), style = CardStyle)
-            ),
-        div(),
-        shiny.semantic::card(
-            shinydashboardPlus::accordion(
-                id = "accordion1",
-                shinydashboardPlus::accordionItem(
-                    title = htmlOutput(ns("trois")),
-                    collapsed = TRUE,
-                    htmlOutput(ns("troisbis"))
-                ),
-                shinydashboardPlus::accordionItem(
-                    title = htmlOutput(ns("quatre")),
-                    collapsed = TRUE,
-                    htmlOutput(ns("quatrebis"))
-                )
-            ),
-            style = CardStyle
-        )
+        uiOutput(ns("chiffres_cle"))
     )
     
 }
@@ -79,7 +42,23 @@ mod_generer_chiffres_cles_server <- function(id, variable, departement, bassin){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
 
-    observe({
+    CardStyle <- "
+  min-height: 45px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: left;
+  text-align: left;
+  padding-top: 5px;
+  padding-bottom:5px;
+  padding-left: 10px;
+  margin-top: 20px;
+  margin-bottom: -10px;
+  background-color: #8DB6CD;
+  border-radius: 5px;
+  "
+    
+    output$chiffres_cle <- renderUI({
         req(variable(), departement)
         
         if (variable() %in%  c("especes", "distribution"))
@@ -97,14 +76,42 @@ mod_generer_chiffres_cles_server <- function(id, variable, departement, bassin){
                     )
         
         indicateurs <- calculer_chiffres_cles(donnees, variable())
-        
-        output$un <- renderText(indicateurs$un)
-        output$deux <- renderText(indicateurs$deux)
-        output$trois <- renderText(indicateurs$trois$texte)
-        output$troisbis <- renderText(indicateurs$trois$tooltip)
-        output$quatre <- renderText(indicateurs$quatre$texte)
-        output$quatrebis <- renderText(indicateurs$quatre$tooltip)
 
+        tagList(
+            div(),
+            shiny.semantic::cards(
+                class = "one",
+                shiny.semantic::card(
+                    HTML(indicateurs$un),
+                    style = CardStyle
+                    ),
+                shiny.semantic::card(
+                    HTML(indicateurs$deux),
+                    style = CardStyle
+                )
+            ),
+            div(),
+            if(variable() == "especes") {
+                shiny.semantic::card(
+                    shinydashboardPlus::accordion(
+                        id = "accordion1",
+                        shinydashboardPlus::accordionItem(
+                            title = HTML(indicateurs$trois$texte),
+                            collapsed = TRUE,
+                            HTML(indicateurs$trois$tooltip)
+                        ),
+                        shinydashboardPlus::accordionItem(
+                            title = HTML(indicateurs$quatre$texte),
+                            collapsed = TRUE,
+                            HTML(indicateurs$quatre$tooltip)
+                        )
+                    ),
+                    style = CardStyle
+                )
+            }
+
+        )
+        
     })
   })
 }
