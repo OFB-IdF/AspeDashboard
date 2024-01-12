@@ -20,13 +20,17 @@ app_server <- function( input, output, session ) {
         id = "admin",
         bassin = SelectionBassin
     )
-    SelectionVariable <- mod_selecteur_variable_server(
-        id = "var"
+    SelectionPeriode <- mod_selecteur_periode_server(
+        id = "periode",
+        bassin = SelectionBassin,
+        departement = SelectionDepartement
         )
+    SelectionVariable <- mod_selecteur_variable_server(id = "var")
     SelectionEspece <- mod_selecteur_espece_server(
         id = "espece",
         variable = SelectionVariable, 
-        bassin = SelectionBassin, departements = SelectionDepartement
+        bassin = SelectionBassin, 
+        departements = SelectionDepartement
     )
 
     SelectionPoint <- mod_carte_op_server(
@@ -34,7 +38,8 @@ app_server <- function( input, output, session ) {
       departement = SelectionDepartement,
       bassin = SelectionBassin,
       variable = SelectionVariable,
-      espece = SelectionEspece
+      espece = SelectionEspece,
+      periode = SelectionPeriode
   )
 
     mod_panneau_droit_server(
@@ -42,6 +47,7 @@ app_server <- function( input, output, session ) {
         variable = SelectionVariable,
         departement = SelectionDepartement,
         bassin = SelectionBassin,
+        periode = SelectionPeriode,
         point = SelectionPoint,
         espece = SelectionEspece
     )

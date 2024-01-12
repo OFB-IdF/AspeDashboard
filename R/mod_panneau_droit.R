@@ -17,7 +17,7 @@ mod_panneau_droit_ui <- function(id){
 #' panneau_droit Server Functions
 #'
 #' @noRd 
-mod_panneau_droit_server <- function(id, variable, departement, bassin, point, espece){
+mod_panneau_droit_server <- function(id, variable, departement, bassin, periode, point, espece){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
     
@@ -27,7 +27,8 @@ mod_panneau_droit_server <- function(id, variable, departement, bassin, point, e
             id = "chiffres_cles",
             variable = variable,
             departement = departement,
-            bassin = bassin
+            bassin = bassin,
+            periode = periode
         )
         
         mod_graphes_metriques_server(
@@ -35,6 +36,7 @@ mod_panneau_droit_server <- function(id, variable, departement, bassin, point, e
             variable = variable,
             point = point,
             departement = departement,
+            periode = periode,
             bassin = bassin,
             espece = espece
         )
@@ -42,7 +44,8 @@ mod_panneau_droit_server <- function(id, variable, departement, bassin, point, e
         mod_graphe_ipr_server(
             id = "graphe_ipr",
             departement = departement,
-            bassin = bassin
+            bassin = bassin,
+            periode = periode
         )
         
         if (variable() == "especes") {

@@ -9,12 +9,8 @@
 #' @export
 #'
 #' @examples
-graphe_synthese_espece <- function(captures, bassins, departements, espece, station) {
+graphe_synthese_espece <- function(captures, espece, station) {
     data_graphe <- captures %>% 
-        dplyr::filter(
-            dh_libelle %in% bassins,
-            dept_id %in% departements
-            ) %>%
         dplyr::group_by(pop_id, annee, ope_id) %>% 
         dplyr::summarise(
             effectif = sum(effectif[esp_code_alternatif == espece]),

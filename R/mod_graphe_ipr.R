@@ -17,14 +17,15 @@ mod_graphe_ipr_ui <- function(id){
 #' graphe_ipr Server Functions
 #'
 #' @noRd 
-mod_graphe_ipr_server <- function(id, departement, bassin){
+mod_graphe_ipr_server <- function(id, departement, bassin, periode){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
  
     DonneesGraphe <- ipr %>% 
         dplyr::filter(
             dh_libelle %in% bassin(),
-            dept_id %in% departement()
+            dept_id %in% departement(),
+            annee >= min(periode()) & annee <= max(periode())
         ) 
     
     output$graphe <- renderPlot(
