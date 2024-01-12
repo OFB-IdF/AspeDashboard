@@ -9,13 +9,13 @@ calculer_chiffres_cles <- function(donnees, variable) {
     
     ChiffresCles <- list(
         un = paste0(
-            "<b>Points de prélèvements: </b>",
+            "<p><b>Points de prélèvements: </b>",
             nrow(stations), 
             " (", 
             stations %>% 
                 dplyr::filter(nb_annees >= 10) %>% 
                 nrow(),
-            " avec au moins dix années de suivi)"
+            " avec au moins dix années de suivi)</p>"
         )
     )
     
@@ -112,7 +112,7 @@ calculer_chiffres_cles <- function(donnees, variable) {
             dplyr::mutate(p = round(100 * n / sum(n))) %>% 
             dplyr::filter(cli_libelle %in% c("Bon", "Très bon")) %>% 
             dplyr::summarise(p = sum(p), n = sum(n)) %>% 
-            dplyr::mutate(bon_etat = paste0(n, " stations échantillonnées au cours des cinq dernières années (", p, "%) sont majoritairement <b>au moins en bon état</b>")) %>% 
+            dplyr::mutate(bon_etat = paste0("<p>", n, " stations échantillonnées au cours des cinq dernières années (", p, "%) sont majoritairement <b>au moins en bon état</b></p>")) %>% 
             dplyr::pull(bon_etat)
         ChiffresCles$trois <- NULL
         ChiffresCles$quatre <- NULL

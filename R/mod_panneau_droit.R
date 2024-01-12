@@ -52,6 +52,7 @@ mod_panneau_droit_server <- function(id, variable, departement, bassin, point, e
                 if (is.null(point())) {
                     tagList(
                         mod_generer_chiffres_cles_ui(id = ns("chiffres_cles")),
+                        br(),
                         mod_graphe_ipr_ui(id = ns("graphe_ipr"))
                     )
                     
