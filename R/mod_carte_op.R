@@ -83,7 +83,7 @@ mod_carte_op_ui <- function(id){
 #' @importFrom sf st_bbox
 #' @importFrom shiny HTML
 #' @importFrom tidyr drop_na
-mod_carte_op_server <- function(id, departement, bassin, variable, espece){
+mod_carte_op_server <- function(id, departement, bassin, periode, variable, espece){
   moduleServer(
     id, 
     function(input, output, session){
@@ -128,7 +128,7 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
     )
     
     observe({
-        req(departement, bassin, variable, espece)
+        req(departement, bassin, periode, variable, espece)
         
         ChoixEspece <- ifelse(
             variable() != "distribution" | is.null(espece()), "", espece()

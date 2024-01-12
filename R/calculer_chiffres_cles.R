@@ -101,7 +101,7 @@ calculer_chiffres_cles <- function(donnees, variable) {
     if (variable == "ipr") {
         ChiffresCles$deux <- donnees %>% 
             dplyr::filter(
-                annee <= lubridate::year(Sys.Date()) - 5
+                annee >= (lubridate::year(Sys.Date()) - 5)
             ) %>% 
             dplyr::group_by(pop_id) %>% 
             dplyr::count(cli_libelle) %>% 

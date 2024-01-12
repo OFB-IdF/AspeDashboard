@@ -39,6 +39,7 @@ app_ui <- function(request) {
           width = 2,
           mod_selecteur_bassin_ui("bassin"),
           mod_selecteur_admin_ui("admin"),
+          mod_selecteur_periode_ui("periode"),
           mod_selecteur_variable_ui("var"),
           mod_selecteur_espece_ui("espece")
         ),

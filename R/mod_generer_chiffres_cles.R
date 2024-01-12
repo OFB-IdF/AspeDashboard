@@ -38,7 +38,7 @@ mod_generer_chiffres_cles_ui <- function(id){
 #'
 #' @noRd 
 #' @importFrom dplyr filter
-mod_generer_chiffres_cles_server <- function(id, variable, departement, bassin){
+mod_generer_chiffres_cles_server <- function(id, variable, departement, bassin, periode){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
 
@@ -65,14 +65,16 @@ mod_generer_chiffres_cles_server <- function(id, variable, departement, bassin){
             donnees <- captures %>%
                 dplyr::filter(
                     dept_id %in% departement(),
-                    dh_libelle %in% bassin()
+                    dh_libelle %in% bassin(),
+                    annee >= min(periode()) & annee <= max(periode())
                     )
         
         if (variable() == "ipr")
             donnees <- ipr %>%
                 dplyr::filter(
                     dept_id %in% departement(),
-                    dh_libelle %in% bassin()
+                    dh_libelle %in% bassin(),
+                    annee >= min(periode()) & annee <= max(periode())
                     )
         
         indicateurs <- calculer_chiffres_cles(donnees, variable())
