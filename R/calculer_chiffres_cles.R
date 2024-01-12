@@ -43,13 +43,12 @@ calculer_chiffres_cles <- function(donnees, variable) {
             ) %>% 
             dplyr::distinct(esp_code_alternatif, recent) %>% 
             dplyr::group_by(esp_code_alternatif) %>% 
-            dplyr::summarise(
+            dplyr::reframe(
                 presence = dplyr::case_when(
                     length(recent) == 2 ~ "maintien",
                     length(recent) == 1 & recent ~ "apparition",
                     length(recent) == 1 & !recent ~ "disparition"
-                ),
-                .groups = "drop"
+                )
             ) %>% 
             dplyr::distinct()
         

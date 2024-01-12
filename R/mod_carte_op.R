@@ -52,7 +52,7 @@ mod_carte_op_ui <- function(id){
                 inputId = ns("station"),
                 label = "",
                 choices = c(
-                    "Localiser un point de prélèvement" = ""
+                    "Zoomer sur un point de prélèvement" = ""
                 ),
                 multiple = FALSE
             )
@@ -176,7 +176,7 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
                 lng2 = BboxMap[["xmax"]],
                 lat2 = BboxMap[["ymax"]]
             )
-        
+
         popups <- switch(
             variable(),
             especes = unname(popups_especes$popups[DataMap$pop_id]),
@@ -219,24 +219,17 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
                     sf::st_centroid() %>% 
                     sf::st_transform(crs = 4326) %>% 
                     sf::st_coordinates()
-            
+                
+                CoordsStationX <- unname(CoordsStation[,"X"])
+                CoordsStationY <- unname(CoordsStation[,"Y"])
+                
             leaflet::leafletProxy("carte_op") %>% 
                 leaflet::setView(
-                    lng = CoordsStation[,"X"],
-                    lat = CoordsStation[,"Y"],
+                    lng = CoordsStationX,
+                    lat = CoordsStationY,
                     zoom = 15
                 )
-            } else {
-
-                leaflet::leafletProxy("carte_op") %>%
-                    leaflet::fitBounds(
-                        map = .,
-                        lng1 = BboxMap[["xmin"]],
-                        lat1 = BboxMap[["ymin"]],
-                        lng2 = BboxMap[["xmax"]],
-                        lat2 = BboxMap[["ymax"]]
-                    )
-            }
+            } 
             
         })
     })
@@ -244,10 +237,30 @@ mod_carte_op_server <- function(id, departement, bassin, variable, espece){
     # observe the marker click info and print to console when it is changed.
     observeEvent(input$carte_op_marker_click,{
         SelectionPoint$clickedMarker <- input$carte_op_marker_click$id
+        update
     })
     
     observeEvent(input$reset, {
         SelectionPoint$clickedMarker <- NULL
+        
+        updateSelectizeInput(
+            session = session,
+            inputId = "station",
+            choices = c(
+                "Localiser un point de prélèvement" = "",
+                pop_geo %>% 
+                    sf::st_drop_geometry() %>% 
+                    dplyr::filter(
+                        dept_id %in% departement(),
+                        dh_libelle %in% bassin()
+                    ) %>% 
+                    dplyr::distinct(pop_libelle) %>% 
+                    dplyr::arrange(pop_libelle) %>% 
+                    dplyr::pull(pop_libelle)
+            ),
+            server = TRUE
+        )
+        
     })
     
     reactive({
