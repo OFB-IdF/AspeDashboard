@@ -101,7 +101,7 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
         )$y
      }
      
-   BboxMap <- sf::st_bbox(carte_operations)
+   BboxMap <- sf::st_bbox(pop_geo)
 
    output$carte_op <- leaflet::renderLeaflet(
         leaflet::leaflet() %>% 
@@ -149,7 +149,13 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
                 ) %>% 
             dplyr::group_by(pop_id) %>%
             dplyr::filter(annee == max(annee)) %>%
-            dplyr::ungroup()
+            dplyr::ungroup() %>% 
+            dplyr::inner_join(
+                pop_geo %>% 
+                    dplyr::select(pop_id),
+                .,
+                by = "pop_id"
+            )
 
         updateSelectizeInput(
             session = session,
