@@ -167,7 +167,8 @@ captures <- aspe::mef_creer_passerelle() %>%
     dplyr::summarise(
         effectif = sum(lop_effectif), 
         .groups = "drop"
-        )
+        ) %>% 
+    dplyr::mutate(pop_id = as.character(pop_id))
 ```
 
 Dans un certain nombre de cas, il peut y avoir plus d’une pêche par
@@ -213,7 +214,10 @@ ipr <- aspe::mef_creer_passerelle() %>%
     aspe::mef_ajouter_libelle() %>% 
     aspe::mef_ajouter_ope_date() %>% 
     aspe::mef_ajouter_ipr() %>% 
-    dplyr::mutate(sup_500m = altitude > 500) %>% 
+    dplyr::mutate(
+        sup_500m = altitude > 500,
+        pop_id = as.character(pop_id)
+        ) %>% 
     dplyr::filter(
         !is.na(ipr),
         !is.na(sup_500m)
@@ -277,6 +281,7 @@ pop_geo <- pop %>%
   # geo_attribuer_buffer(poly_sf = rh_geo, buffer = 500) %>%
   AspeDashboard::geo_attribuer_buffer(poly_sf = dh_geo %>% 
                            dplyr::select(-c(gml_id, gid)), buffer = 500) %>%   
+    dplyr::mutate(pop_id = as.character(pop_id)) %>% 
   dplyr::select(
     pop_id,
     pop_libelle,
@@ -291,7 +296,8 @@ pop_geo <- pop %>%
     rh_libelle = LbRegionHydro,
     dh_id = CdBH,
     dh_libelle = LbBH
-  )
+  ) %>% 
+    sf::st_transform(crs = 4326)
 
 usethis::use_data(pop_geo, overwrite = TRUE)
 ```
@@ -545,7 +551,7 @@ SyntheseDistributions <- captures %>%
         donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5
     ) %>% 
     dplyr::ungroup() %>% 
-    dplyr::select(pop_id, esp_code_alternatif, annee, nb_annees, nb_annees_tot, variable, valeur, derniere_annee, donnees_recentes)
+    dplyr::select(pop_id, esp_code_alternatif, annee, nb_annees, nb_annees_tot, variable, valeur, derniere_annee, donnees_recentes, effectif)
 ```
 
 ``` r
@@ -564,15 +570,13 @@ color_pal_ipr <- leaflet::colorFactor(
 
 ``` r
 carte_operations <- dplyr::bind_rows(
-    pop_geo %>%
-        dplyr::mutate(pop_id = as.character(pop_id)) %>%
-        dplyr::inner_join(SyntheseEspeces, by = "pop_id"),
-    pop_geo %>% 
-        dplyr::mutate(pop_id = as.character(pop_id)) %>% 
-        dplyr::inner_join(SyntheseIpr, by = "pop_id"),
-    pop_geo %>% 
-        dplyr::mutate(pop_id = as.character(pop_id)) %>% 
-        dplyr::inner_join(SyntheseDistributions, by = "pop_id")
+    SyntheseEspeces, SyntheseIpr, SyntheseDistributions
+    ) %>% 
+    dplyr::left_join(
+        pop_geo %>% 
+            sf::st_drop_geometry() %>% 
+            dplyr::mutate(pop_id = as.character(pop_id)),
+        by = "pop_id"
     ) %>% 
     dplyr::mutate(
         hover = paste0(
@@ -604,9 +608,8 @@ carte_operations <- dplyr::bind_rows(
         ),
         opacite = ifelse(donnees_recentes, 1, .25)
         ) %>%
-    sf::st_transform(4326) %>% 
     dplyr::select(
-        pop_id, dept_id, dh_libelle, annee, esp_code_alternatif,
+        pop_id, dept_id, dh_libelle, annee, esp_code_alternatif,effectif,
         nb_annees, variable, valeur, hover, couleur, opacite
         ) 
 
@@ -617,6 +620,9 @@ usethis::use_data(carte_operations, overwrite = TRUE)
 LegendeEspeces <- (
     carte_operations %>% 
     dplyr::filter(variable == "especes") %>% 
+        dplyr::inner_join(
+            pop_geo, ., by = "pop_id"
+        ) %>% 
     ggplot2::ggplot() +
     ggplot2::geom_sf(
         mapping = ggplot2::aes(
@@ -650,6 +656,9 @@ LegendeEspeces <- (
 LegendeIpr <- (
     carte_operations %>% 
         dplyr::filter(variable == "ipr") %>% 
+        dplyr::inner_join(
+            pop_geo, ., by = "pop_id"
+        ) %>% 
         ggplot2::ggplot() +
         ggplot2::geom_sf(
             mapping = ggplot2::aes(
@@ -691,7 +700,9 @@ LegendeIpr <- (
 
 LegendeDistribution <- (
     carte_operations %>% 
-        dplyr::filter(variable == "distribution") %>% 
+        dplyr::filter(variable == "distribution") %>%         dplyr::inner_join(
+            pop_geo, ., by = "pop_id"
+        ) %>% 
         ggplot2::ggplot() +
         ggplot2::geom_sf(
             colour = "lightgrey",
