@@ -24,21 +24,6 @@ mod_graphes_metriques_ui <- function(id){
 mod_graphes_metriques_server <- function(id, variable, point, departement, bassin,  periode, espece){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
-    int_breaks <- function(x, n = 5){
-        if (length(unique(x)) > 1) {
-            pretty(x, n)[round(pretty(x, n), 1) %% 1 == 0]
-        } else {
-            round(unique(x)) + c(-1, 0, 1)
-        }
-    }
-    
-    int_limits <- function(x) {
-        if (length(unique(x)) > 1) {
-            range(x)
-        } else {
-            range(int_breaks(x))
-        }
-    }
     
     output$graphe <- renderPlot({
         req(variable, point, bassin, departement, espece)
@@ -101,6 +86,10 @@ mod_graphes_metriques_server <- function(id, variable, point, departement, bassi
                     breaks = int_breaks,
                     limits = int_limits
                 )  +
+                ggplot2::scale_y_continuous(
+                    breaks = int_breaks,
+                    limits = int_limits
+                ) +
                 ggplot2::theme(
                     strip.text = ggplot2::element_text(hjust = 0, size = 12, face = "bold"),
                     axis.text = ggplot2::element_text(size = 10),

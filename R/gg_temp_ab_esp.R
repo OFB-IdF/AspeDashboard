@@ -13,22 +13,6 @@
 #' @export
 #'
 gg_temp_ab_esp <- function(df, var_espece, var_abondance, var_annee, var_site, var_proto, sel_espece, sel_site, interactif = FALSE, largeur = 4, hauteur = 5) {
-    int_breaks <- function(x, n = 5) {
-        if (length(unique(x)) > 1) {
-            pretty(x, n)[round(pretty(x, n), 1)%%1 == 0]
-        }
-        else {
-            round(unique(x)) + c(-1, 0, 1)
-        }
-    }
-    int_limits <- function(x) {
-        if (length(unique(x)) > 1) {
-            range(x)
-        }
-        else {
-            range(int_breaks(x))
-        }
-    }
     int_limits2 <- function(x) {
         if (length(unique(x)) > 1) {
             range(x) + c(-.25, .25)

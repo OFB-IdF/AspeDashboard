@@ -35,6 +35,14 @@ mod_graphe_ipr_server <- function(id, departement, bassin, periode){
                 panel.grid.major.y = ggplot2::element_line(colour = "grey"),
                 strip.text = ggplot2::element_text(size = 12, face = "bold"),
                 axis.text = ggplot2::element_text(size = 10)
+            ) +
+            ggplot2::scale_x_continuous(
+                breaks = int_breaks,
+                limits = int_limits
+            ) +
+            ggplot2::scale_y_continuous(
+                breaks = int_breaks,
+                limits = int_limits
             )
     )
   })
