@@ -70,6 +70,7 @@ load("hydro_sandre.rda")
 
 ``` r
 if (!require("COGiter")) remotes::install_github("MaelTheuliere/COGiter")
+
 dep_geo <- COGiter::departements_metro_geo %>% 
              dplyr::left_join(
                  COGiter::departements,
@@ -119,13 +120,14 @@ dans R mais sans autre pré-traitement.
 
 ``` r
 fichier_dump <- "tables_sauf_mei_2023_11_08_15_32_42.236211.RData"
+
 load(fichier_dump)
 
 date_export <- fichier_dump %>% 
     stringr::str_extract(pattern = "\\d{4}_\\d{2}_\\d{2}") %>% 
     lubridate::as_date(format = "%Y_%m_%d")
 
-usethis::use_data(date_export)
+usethis::use_data(date_export, overwrite = TRUE)
 ```
 
 ## Sélection des données de capture
@@ -137,6 +139,7 @@ conservés).
 
 ``` r
 if (!require("aspe")) remotes::install_github("PascalIrz/aspe")
+
 captures <- aspe::mef_creer_passerelle() %>%
   aspe::mef_ajouter_ope_date() %>%
   aspe::mef_ajouter_libelle() %>% 
@@ -262,23 +265,30 @@ pop_geo <- pop %>%
         coords = c("x_l93", "y_l93"),
         crs = 2154
         ) %>%
-  aspe::geo_attribuer(poly_sf = dep_geo) %>%
-  aspe::geo_attribuer(poly_sf = reg_geo) %>%
-  aspe::geo_attribuer(poly_sf = sh_geo) %>%
-  aspe::geo_attribuer(poly_sf = rh_geo) %>%
-  aspe::geo_attribuer(poly_sf = dh_geo) %>%   
+    rmapshaper::ms_clip(
+        reg_geo %>% 
+            dplyr::summarise() %>% 
+            sf::st_buffer(500)
+    ) %>% 
+  AspeDashboard::geo_attribuer_buffer(poly_sf = dep_geo %>% 
+                           dplyr::select(-INSEE_REG), buffer = 500) %>%
+  AspeDashboard::geo_attribuer_buffer(poly_sf = reg_geo, buffer = 500) %>%
+  AspeDashboard::geo_attribuer_buffer(poly_sf = sh_geo, buffer = 500) %>%
+  # geo_attribuer_buffer(poly_sf = rh_geo, buffer = 500) %>%
+  AspeDashboard::geo_attribuer_buffer(poly_sf = dh_geo %>% 
+                           dplyr::select(-c(gml_id, gid)), buffer = 500) %>%   
   dplyr::select(
     pop_id,
     pop_libelle,
     sta_code_sandre,
     dept_id = INSEE_DEP,
     dept_libelle = NOM_DEP,
-    reg_id = INSEE_REG.x,
+    reg_id = INSEE_REG,
     reg_libelle = NOM_REG,
     sh_id = CdSecteurHydro,
     sh_libelle = LbSecteurHydro,
     rh_id = CdRegionHydro,
-    rh_libelle = LbRegionHydro.x,
+    rh_libelle = LbRegionHydro,
     dh_id = CdBH,
     dh_libelle = LbBH
   )
@@ -288,7 +298,7 @@ usethis::use_data(pop_geo, overwrite = TRUE)
 
 ``` r
 captures <- captures %>% 
-    dplyr::left_join(
+    dplyr::inner_join(
         pop_geo %>% 
             sf::st_drop_geometry() %>% 
             dplyr::select(pop_id, dept_id, dh_libelle),
@@ -296,7 +306,7 @@ captures <- captures %>%
     )
 
 ipr <- ipr %>% 
-    dplyr::left_join(
+    dplyr::inner_join(
         pop_geo %>% 
             sf::st_drop_geometry() %>% 
             dplyr::select(pop_id, dept_id, dh_libelle),
@@ -330,51 +340,6 @@ if (generer_popups) {
          )
 
 # usethis::use_data(plots_especes, overwrite = TRUE)
-}
-```
-
-## Abondances espèce par espèce
-
-``` r
-especes_sites <- captures %>% 
-    dplyr::distinct(pop_libelle, esp_code_alternatif) %>% 
-    dplyr::filter(pop_libelle %in% sample(unique(captures$pop_libelle), 100))
-```
-
-``` r
-if (generer_popups) {
-    plots_distribution <- purrr::map(
-    .x = unique(especes_sites$pop_libelle),
-    .f = function(x) {
-        especes.x <- captures %>% 
-                dplyr::filter(pop_libelle == x) %>% 
-                dplyr::distinct(esp_code_alternatif) %>% 
-                dplyr::pull(esp_code_alternatif)
-        purrr::map(
-            .x = especes.x,
-            .f = function(y) {
-                gg_temp_ab_esp(
-                    df = captures,
-                    var_espece = esp_code_alternatif, 
-                    var_abondance = effectif, 
-                    var_annee = annee,
-                    var_site = pop_libelle,
-                    var_proto = pro_libelle,
-                    sel_espece = y,
-                    sel_site = x,
-                    interactif = TRUE,
-                    largeur = 6,
-                    hauteur = 4
-                )
-                }
-        ) %>% 
-            purrr::set_names(especes.x)
-    },
-    .progress = TRUE) %>% 
-    purrr::set_names(unique(especes_sites$pop_libelle))
-
-
-# usethis::use_data(plots_distribution, overwrite = TRUE)
 }
 ```
 
@@ -517,31 +482,33 @@ if (generer_popups) {
 SyntheseEspeces <- captures %>%
     dplyr::mutate(pop_id = as.character(pop_id)) %>%
     dplyr::group_by(pop_id, annee) %>%
-    dplyr::summarise(
-        nb_esp = dplyr::n_distinct(esp_code_alternatif),
+    dplyr::mutate(
+        nb_esp = unique(dplyr::n_distinct(esp_code_alternatif)),
         .groups = "drop"
-                ) %>%
-                dplyr::group_by(pop_id) %>%
-                dplyr::summarise(
-                    nb_annees = dplyr::n_distinct(annee),
-                    variable = "especes",
-                    valeur = as.character(nb_esp[annee == max(annee)]),
-                    derniere_annee = max(annee),
-                    donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5,
-                    .groups= "drop"
-                )
+        ) %>%
+    dplyr::group_by(pop_id) %>%
+    dplyr::mutate(
+        nb_annees = unique(dplyr::n_distinct(annee)),
+        variable = "especes",
+        valeur = unique(as.character(nb_esp[annee == max(annee)])),
+        derniere_annee = max(annee),
+        donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5
+        ) %>% 
+    dplyr::ungroup() %>% 
+    dplyr::select(pop_id, annee, nb_annees, variable, valeur, derniere_annee, donnees_recentes)
 
 SyntheseIpr <-  ipr %>% 
             dplyr::mutate(pop_id = as.character(pop_id)) %>% 
             dplyr::group_by(pop_id) %>% 
-            dplyr::summarise(
-                nb_annees = dplyr::n_distinct(annee),
+            dplyr::mutate(
+                nb_annees = unique(dplyr::n_distinct(annee)),
                 variable = "ipr",
-                valeur = as.character(cli_libelle[annee == max(annee)]),
+                valeur = cli_libelle,
                 derniere_annee = max(annee),
-                donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5,
-                .groups = "drop"
-            )
+                donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5
+            ) %>% 
+    dplyr::ungroup() %>% 
+    dplyr::select(pop_id, annee, nb_annees, variable, valeur, derniere_annee, donnees_recentes)
 
 SyntheseDistributions <- captures %>% 
     dplyr::mutate(pop_id = as.character(pop_id)) %>%
@@ -569,15 +536,16 @@ SyntheseDistributions <- captures %>%
     ) %>% 
      purrr::list_rbind() %>% 
     dplyr::group_by(pop_id, esp_code_alternatif) %>% 
-    dplyr::summarise(
-        nb_annees = dplyr::n_distinct(annee[effectif > 0]),
-        nb_annees_tot = dplyr::n_distinct(annee),
+    dplyr::mutate(
+        nb_annees = unique(dplyr::n_distinct(annee[effectif > 0])),
+        nb_annees_tot = unique(dplyr::n_distinct(annee)),
         variable = "distribution",
-        valeur = as.character(round(mean(effectif[effectif > 0]), 1)),
+        valeur = unique(as.character(round(mean(effectif[effectif > 0]), 1))),
         derniere_annee = max(annee[effectif > 0]),
-        donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5,
-        .groups = "drop"
-    )
+        donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5
+    ) %>% 
+    dplyr::ungroup() %>% 
+    dplyr::select(pop_id, esp_code_alternatif, annee, nb_annees, nb_annees_tot, variable, valeur, derniere_annee, donnees_recentes)
 ```
 
 ``` r
@@ -598,13 +566,13 @@ color_pal_ipr <- leaflet::colorFactor(
 carte_operations <- dplyr::bind_rows(
     pop_geo %>%
         dplyr::mutate(pop_id = as.character(pop_id)) %>%
-        dplyr::left_join(SyntheseEspeces, by = "pop_id"),
+        dplyr::inner_join(SyntheseEspeces, by = "pop_id"),
     pop_geo %>% 
         dplyr::mutate(pop_id = as.character(pop_id)) %>% 
-        dplyr::left_join(SyntheseIpr, by = "pop_id"),
+        dplyr::inner_join(SyntheseIpr, by = "pop_id"),
     pop_geo %>% 
         dplyr::mutate(pop_id = as.character(pop_id)) %>% 
-        dplyr::left_join(SyntheseDistributions, by = "pop_id")
+        dplyr::inner_join(SyntheseDistributions, by = "pop_id")
     ) %>% 
     dplyr::mutate(
         hover = paste0(
@@ -625,8 +593,8 @@ carte_operations <- dplyr::bind_rows(
                 variable == "ipr" ~ paste0(valeur, " état"),
                 variable == "distribution" ~ paste0("Effectif moyen quand capturée: ", valeur)
                 ),
-            ifelse(variable == "distribution", "", 
-                   paste0(" (", derniere_annee, ")")
+            ifelse(variable == "distribution", "",
+                   paste0(" (", annee, ")")
                    )
             ),
         couleur = dplyr::case_when(
@@ -638,7 +606,7 @@ carte_operations <- dplyr::bind_rows(
         ) %>%
     sf::st_transform(4326) %>% 
     dplyr::select(
-        pop_id, dept_id, dh_libelle, esp_code_alternatif,
+        pop_id, dept_id, dh_libelle, annee, esp_code_alternatif,
         nb_annees, variable, valeur, hover, couleur, opacite
         ) 
 

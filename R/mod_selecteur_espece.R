@@ -23,6 +23,7 @@ mod_selecteur_espece_server <- function(id, variable, bassin, departements){
                 req(variable, bassin, departements)
             
             liste_especes <- carte_operations %>% 
+                sf::st_drop_geometry() %>% 
                 dplyr::filter(dh_libelle %in% bassin()) %>% 
                 dplyr::filter(dept_id %in% departements()) %>% 
                 dplyr::distinct(esp_code_alternatif) %>% 

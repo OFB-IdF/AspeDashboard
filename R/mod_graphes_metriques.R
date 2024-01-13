@@ -87,7 +87,7 @@ mod_graphes_metriques_server <- function(id, variable, point, departement, bassi
                 }
             }
         } else {
-            graphe <- AspeDashboard::captures %>% 
+            graphe <- captures %>% 
                 dplyr::filter(
                     dh_libelle %in% bassin(),
                     dept_id %in% departement(),

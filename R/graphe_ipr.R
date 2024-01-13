@@ -1,3 +1,15 @@
+#' Title
+#'
+#' @param donnees 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+#' @importFrom dplyr group_by summarise n_distinct mutate ungroup left_join filter distinct
+#' @importFrom ggplot2 ggplot aes geom_col scale_fill_identity facet_wrap vars labs
+#' @importFrom sf st_drop_geometry
+#' @importFrom tidyr pivot_longer
 graphe_ipr <- function(donnees) {
     labels <- c(
         "nb_pop" = "Nombre de stations",
@@ -14,7 +26,7 @@ graphe_ipr <- function(donnees) {
             cols = c(nb_pop, p_pop)
         ) %>% 
         dplyr::left_join(
-            AspeDashboard::carte_operations %>% 
+            carte_operations %>% 
                 sf::st_drop_geometry() %>% 
                 dplyr::filter(variable == "ipr") %>% 
                 dplyr::distinct(valeur, couleur),
