@@ -87,46 +87,49 @@ graphe_synthese_espece <- function(captures, espece, station) {
         }) %>% 
         dplyr::mutate(label = paste0(pop_libelle, "\ (", pop_id, ")"))
         
-    
-    ggplot2::ggplot(
+    if (nrow(data_n_stations) > 0) {
+        ggplot2::ggplot(
             mapping = ggplot2::aes(
                 x = annee, y = valeurs, fill = presence
             )
         ) +
-        ggplot2::geom_col(
-            data = data_n_stations,
-            colour = "darkgrey"
-        ) +
-        ggplot2::geom_point(
-            data = data_station,
-            mapping = ggplot2::aes(colour = label),
-            shape = 21, size = 3
+            ggplot2::geom_col(
+                data = data_n_stations,
+                colour = "darkgrey"
             ) +
-        ggplot2::facet_wrap(facets = ggplot2::vars(metrique), ncol = 1, scales = "free_y") +
-        ggplot2::scale_fill_manual(
-            values = c("white", "grey"),
-            labels = c("absence", "présence")
-        ) +
-        ggplot2::scale_colour_manual(
-            values = "black"
-        ) +
-        ggplot2::labs(
-            title = paste0("Evolution temporelle des prises de l'espèce ", espece),
-            x = "", y = "", fill = "", colour = ""
-        ) +
-        ggplot2::guides(
-            fill = ggplot2::guide_legend(order = 1),
-            color = ggplot2::guide_legend(order = 2)
-        ) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-            legend.position = "bottom",
-            legend.justification = "left",
-            panel.grid.major.x = ggplot2::element_blank(),
-            panel.grid.minor.x = ggplot2::element_blank(),
-            panel.grid.minor.y = ggplot2::element_blank(),
-            plot.title = ggplot2::element_text(face = "bold"),
-            strip.text = ggplot2::element_text(hjust = 0)
-        )
+            ggplot2::geom_point(
+                data = data_station,
+                mapping = ggplot2::aes(colour = label),
+                shape = 21, size = 3
+            ) +
+            ggplot2::facet_wrap(facets = ggplot2::vars(metrique), ncol = 1, scales = "free_y") +
+            ggplot2::scale_fill_manual(
+                values = c("white", "grey"),
+                labels = c("absence", "présence")
+            ) +
+            ggplot2::scale_colour_manual(
+                values = "black"
+            ) +
+            ggplot2::labs(
+                title = paste0("Evolution temporelle des prises de l'espèce ", espece),
+                x = "", y = "", fill = "", colour = ""
+            ) +
+            ggplot2::guides(
+                fill = ggplot2::guide_legend(order = 1),
+                color = ggplot2::guide_legend(order = 2)
+            ) +
+            ggplot2::theme_minimal() +
+            ggplot2::theme(
+                legend.position = "bottom",
+                legend.justification = "left",
+                panel.grid.major.x = ggplot2::element_blank(),
+                panel.grid.minor.x = ggplot2::element_blank(),
+                panel.grid.minor.y = ggplot2::element_blank(),
+                plot.title = ggplot2::element_text(face = "bold"),
+                strip.text = ggplot2::element_text(hjust = 0)
+            )
+        
+    }
+    
     
 }
