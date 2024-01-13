@@ -151,10 +151,22 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
                 dh_libelle %in% bassin(),
                 variable == variable(),
                 esp_code_alternatif == ChoixEspece,
-                annee >= min(periode()) & annee <= max(periode())
+                annee >= min(periode()) & annee <= max(periode()),
                 ) %>% 
-            dplyr::group_by(pop_id) %>%
-            dplyr::filter(annee == max(annee)) %>%
+            dplyr::group_by(pop_id) %>% 
+            dplyr::mutate(
+                afficher = dplyr::case_when(
+                    variable != "distribution" ~ TRUE,
+                    variable == "distribution" &
+                        sum(effectif)>0 ~ TRUE,
+                    variable == "distribution" &
+                        sum(effectif) == 0 ~ FALSE
+                )
+            ) %>% 
+            dplyr::filter(
+                afficher,
+                annee == max(annee[afficher])
+                ) %>% 
             dplyr::ungroup() %>% 
             dplyr::inner_join(
                 pop_geo %>% 
