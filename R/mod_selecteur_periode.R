@@ -19,7 +19,7 @@ mod_selecteur_periode_ui <- function(id){
           round = TRUE,
           sep = "",
           ticks = FALSE,
-          # animate = TRUE
+          animate = TRUE
       )
   )
 }
