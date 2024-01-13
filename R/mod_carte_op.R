@@ -102,8 +102,8 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
      }
      
    BboxMap <- sf::st_bbox(carte_operations)
-    
-    output$carte_op <- leaflet::renderLeaflet(
+
+   output$carte_op <- leaflet::renderLeaflet(
         leaflet::leaflet() %>% 
             leaflet::addTiles(map = .) %>% 
         leaflet::fitBounds(
@@ -133,7 +133,7 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
         ChoixEspece <- ifelse(
             variable() != "distribution" | is.null(espece()), "", espece()
         )
-        
+
         DataMap <- carte_operations %>% 
             dplyr::mutate(
                 esp_code_alternatif = stringr::str_replace_na(
@@ -144,10 +144,13 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
                 dept_id %in% departement(),
                 dh_libelle %in% bassin(),
                 variable == variable(),
-                esp_code_alternatif == ChoixEspece
+                esp_code_alternatif == ChoixEspece,
+                annee >= min(periode()) & annee <= max(periode())
                 ) %>% 
-            tidyr::drop_na(nb_annees, variable, valeur, couleur, opacite)
-        
+            dplyr::group_by(pop_id) %>%
+            dplyr::filter(annee == max(annee)) %>%
+            dplyr::ungroup()
+
         updateSelectizeInput(
             session = session,
             inputId = "station",

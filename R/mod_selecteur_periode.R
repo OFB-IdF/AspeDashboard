@@ -13,13 +13,13 @@ mod_selecteur_periode_ui <- function(id){
       sliderInput(
           inputId = ns("periode"),
           label = "Choisir la période",
-          min = min(AspeDashboard::captures$annee),
-          max = max(AspeDashboard::captures$annee),
-          value = range(AspeDashboard::captures$annee),
+          min = min(captures$annee),
+          max = max(captures$annee),
+          value = range(captures$annee),
           round = TRUE,
           sep = "",
-          ticks = FALSE
-          
+          ticks = FALSE,
+          # animate = TRUE
       )
   )
 }
@@ -34,7 +34,7 @@ mod_selecteur_periode_server <- function(id, bassin, departement){
     observe({
         req(bassin, departement)
         
-        DataPeriode <- AspeDashboard::captures %>% 
+        DataPeriode <- captures %>% 
             dplyr::filter(
                 dh_libelle %in% bassin(),
                 dept_id %in% departement()
