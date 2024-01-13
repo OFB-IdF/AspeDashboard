@@ -134,6 +134,12 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
             variable() != "distribution" | is.null(espece()), "", espece()
         )
 
+        MapEmprise <- pop_geo %>% 
+            dplyr::filter(
+                dept_id %in% departement(),
+                dh_libelle %in% bassin()
+            )
+        
         DataMap <- carte_operations %>% 
             dplyr::mutate(
                 esp_code_alternatif = stringr::str_replace_na(
@@ -162,12 +168,8 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
             inputId = "station",
             choices = c(
                 "Localiser un point de prélèvement" = "",
-                pop_geo %>% 
+                MapEmprise %>% 
                     sf::st_drop_geometry() %>% 
-                    dplyr::filter(
-                        dept_id %in% departement(),
-                        dh_libelle %in% bassin()
-                        ) %>% 
                     dplyr::distinct(pop_libelle) %>% 
                     dplyr::arrange(pop_libelle) %>% 
                     dplyr::pull(pop_libelle)
@@ -175,7 +177,7 @@ mod_carte_op_server <- function(id, departement, bassin, periode, variable, espe
             server = TRUE
         )
         
-        BboxMap <- sf::st_bbox(DataMap)
+        BboxMap <- sf::st_bbox(MapEmprise)
         
         leaflet::leafletProxy("carte_op") %>%
             leaflet::fitBounds(
