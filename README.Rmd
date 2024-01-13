@@ -41,8 +41,10 @@ remotes::install_gitlab(
 
 Pour déployer l'application sur shinyapps, il convient de :
 
-1.  préparer les données en utilisant le script `data-raw/PreparationDonnees.qmd`
+1.  Récupérer un export 'tables_sauf_mei' de la base Aspe préparée avec le package {aspe};
 
-2.  ne conserver dans le dossier `inst/app/www/widgets` que les archives `ipr.tar` et `especes.tar` et supprimer éventuellement les dossiers `ipr` et `especes`
+2.  préparer les données en utilisant le script [`data-raw/PreparationDonnees.qmd`](https://github.com/CedricMondy/AspeDashboard/blob/main/data-raw/PreparationDonnees.qmd) (ne pas oublier de passer la variable `generer_popups` à `TRUE` et de changer le nom du fichier rdata de l'export de la base;
 
-3.  exclure du déploiement les dossiers `data-raw` et `dev` qui sont volumineux et ne sont nécessaires que pour la préparation des données, pas pour le fonctionnement de l'appli.
+3.  ne conserver dans le dossier `inst/app/www/widgets` que les archives `ipr.tar` et `especes.tar` et supprimer éventuellement les dossiers `ipr` et `especes` ;
+
+4.  exclure du déploiement les dossiers `data-raw` et `dev` qui sont volumineux et ne sont nécessaires que pour la préparation des données, pas pour le fonctionnement de l'appli.

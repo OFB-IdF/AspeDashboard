@@ -8,6 +8,7 @@ editor: visual
 ---
 
 ```{r}
+fichier_dump <- "tables_sauf_mei_2023_11_08_15_32_42.236211.RData"
 generer_popups <- FALSE
 ```
 
@@ -124,8 +125,6 @@ usethis::use_data(administratif, overwrite = TRUE)
 Les données utilisées sont les données du dump sql de la base importées dans R mais sans autre pré-traitement.
 
 ```{r}
-fichier_dump <- "tables_sauf_mei_2023_11_08_15_32_42.236211.RData"
-
 load(fichier_dump)
 
 date_export <- fichier_dump %>% 
