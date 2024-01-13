@@ -280,6 +280,7 @@ pop_geo <- pop %>%
   # geo_attribuer_buffer(poly_sf = rh_geo, buffer = 500) %>%
   AspeDashboard::geo_attribuer_buffer(poly_sf = dh_geo %>% 
                            dplyr::select(-c(gml_id, gid)), buffer = 500) %>%   
+    dplyr::mutate(pop_id = as.character(pop_id)) %>% 
   dplyr::select(
     pop_id,
     pop_libelle,
@@ -294,7 +295,8 @@ pop_geo <- pop %>%
     rh_libelle = LbRegionHydro,
     dh_id = CdBH,
     dh_libelle = LbBH
-  )
+  ) %>% 
+    sf::st_transform(crs = 4326)
 
 usethis::use_data(pop_geo, overwrite = TRUE)
 ```
@@ -574,15 +576,13 @@ color_pal_ipr <- leaflet::colorFactor(
 
 ```{r}
 carte_operations <- dplyr::bind_rows(
-    pop_geo %>%
-        dplyr::mutate(pop_id = as.character(pop_id)) %>%
-        dplyr::inner_join(SyntheseEspeces, by = "pop_id"),
-    pop_geo %>% 
-        dplyr::mutate(pop_id = as.character(pop_id)) %>% 
-        dplyr::inner_join(SyntheseIpr, by = "pop_id"),
-    pop_geo %>% 
-        dplyr::mutate(pop_id = as.character(pop_id)) %>% 
-        dplyr::inner_join(SyntheseDistributions, by = "pop_id")
+    SyntheseEspeces, SyntheseIpr, SyntheseDistributions
+    ) %>% 
+    dplyr::left_join(
+        pop_geo %>% 
+            sf::st_drop_geometry() %>% 
+            dplyr::mutate(pop_id = as.character(pop_id)),
+        by = "pop_id"
     ) %>% 
     dplyr::mutate(
         hover = paste0(
@@ -614,7 +614,6 @@ carte_operations <- dplyr::bind_rows(
         ),
         opacite = ifelse(donnees_recentes, 1, .25)
         ) %>%
-    sf::st_transform(4326) %>% 
     dplyr::select(
         pop_id, dept_id, dh_libelle, annee, esp_code_alternatif,
         nb_annees, variable, valeur, hover, couleur, opacite
@@ -767,3 +766,4 @@ download.file(
     overwrite = TRUE
 )
 ```
+

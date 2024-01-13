@@ -27,7 +27,6 @@ graphe_ipr <- function(donnees) {
         ) %>% 
         dplyr::left_join(
             carte_operations %>% 
-                sf::st_drop_geometry() %>% 
                 dplyr::filter(variable == "ipr") %>% 
                 dplyr::distinct(valeur, couleur),
             by = c("cli_libelle" = "valeur")
