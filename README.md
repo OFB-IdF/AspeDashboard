@@ -24,11 +24,7 @@ repose largement sur le package
 if (!require(remotes))
     install.packages("remotes")
 
-remotes::install_gitlab(
-    repo = "cedric.mondy1/aspedashboard",
-    host = "https://gitlab.ofb.fr", 
-    dependencies = TRUE
-    )
+remotes::install_github("OFB-IdF/AspeDashboard")
 ```
 
 # Déploiement
