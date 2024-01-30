@@ -12,13 +12,20 @@
 #' @return
 #' @export
 #'
+#' @importFrom dplyr select filter mutate distinct
+#' @importFrom ggiraph geom_col_interactive geom_point_interactive girafe
+#' @importFrom ggplot2 ggplot aes geom_point facet_wrap vars scale_x_continuous theme_minimal theme element_blank element_text unit geom_line scale_shape_manual scale_y_continuous expansion labs element_rect
+#' @importFrom patchwork plot_layout
+#' @importFrom rlang enquo
+#' @importFrom templatesOFB int_breaks int_limits
+#' @importFrom tidyr complete nesting replace_na
 gg_temp_ab_esp <- function(df, var_espece, var_abondance, var_annee, var_site, var_proto, sel_espece, sel_site, interactif = FALSE, largeur = 4, hauteur = 5) {
     int_limits2 <- function(x) {
         if (length(unique(x)) > 1) {
             range(x) + c(-.25, .25)
         }
         else {
-            range(int_breaks(x)) + c(-.25, .25)
+            range(templatesOFB::int_breaks(x)) + c(-.25, .25)
         }
     }
     
@@ -63,8 +70,8 @@ gg_temp_ab_esp <- function(df, var_espece, var_abondance, var_annee, var_site, v
                             shape = 4, size = 2, stroke = 2) + 
         ggplot2::facet_wrap(ggplot2::vars(lbl)) +
         ggplot2::scale_x_continuous(
-            limits = int_limits,
-            breaks = int_breaks
+            limits = templatesOFB::int_limits,
+            breaks = templatesOFB::int_breaks
         ) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
@@ -109,7 +116,7 @@ gg_temp_ab_esp <- function(df, var_espece, var_abondance, var_annee, var_site, v
             ) +
         ggplot2::scale_x_continuous(
             position = "top", 
-            breaks = int_breaks,
+            breaks = templatesOFB::int_breaks,
             limits = int_limits2
             ) +
         ggplot2::scale_y_continuous(

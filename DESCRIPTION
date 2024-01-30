@@ -19,6 +19,7 @@ Imports:
     knitr,
     leaflet,
     leafpop,
+    lubridate,
     patchwork,
     progress,
     purrr,
@@ -28,6 +29,7 @@ Imports:
     shiny.semantic,
     shinydashboardPlus,
     stringr,
+    templatesOFB,
     tidyr,
     utils
 Suggests: 
