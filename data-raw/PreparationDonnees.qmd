@@ -8,7 +8,14 @@ editor: visual
 ---
 
 ```{r}
-fichier_dump <- "tables_sauf_mei_2023_11_08_15_32_42.236211.RData"
+if (!require("pak")) install.packages("pak")
+
+pak::pkg_install(c(
+    "CedricMondy/AspeDashboard", "MaelTheuliere/COGiter", "PascalIrz/aspe",
+    "httr", "sf", "rmapshaper", "dplyr", "purrr", "usethis", "stringr", "progress", "lubridate", "tidyr",
+    "ggplot2", "cowplot", "ggiraph", "leaflet", "ows4R"
+))
+```
 generer_popups <- FALSE
 ```
 
@@ -76,8 +83,6 @@ load("hydro_sandre.rda")
 ## Découpage administratif
 
 ```{r}
-if (!require("COGiter")) remotes::install_github("MaelTheuliere/COGiter")
-
 dep_geo <- COGiter::departements_metro_geo %>% 
              dplyr::left_join(
                  COGiter::departements,
@@ -139,8 +144,6 @@ usethis::use_data(date_export, overwrite = TRUE)
 On ne conserve que les données ayant une qualification correcte et correspondant à des protocoles permettant d'avoir une vision peuplement (les protocoles ciblant des espèces particulières ne sont pas conservés).
 
 ```{r}
-if (!require("aspe")) remotes::install_github("PascalIrz/aspe")
-
 captures <- aspe::mef_creer_passerelle() %>%
   aspe::mef_ajouter_ope_date() %>%
   aspe::mef_ajouter_libelle() %>% 
