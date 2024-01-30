@@ -16,6 +16,9 @@ pak::pkg_install(c(
     "ggplot2", "cowplot", "ggiraph", "leaflet", "ows4R"
 ))
 ```
+
+```{r}
+fichier_dump <- "tables_sauf_mei_2024_01_22_12_13_56.RData"
 generer_popups <- FALSE
 ```
 
