@@ -2,7 +2,18 @@ Préparation des données ASPE
 ================
 
 ``` r
-generer_popups <- FALSE
+if (!require("pak")) install.packages("pak")
+
+pak::pkg_install(c(
+    "CedricMondy/AspeDashboard", "MaelTheuliere/COGiter", "PascalIrz/aspe",
+    "httr", "sf", "rmapshaper", "dplyr", "purrr", "usethis", "stringr", "progress", "lubridate", "tidyr",
+    "ggplot2", "cowplot", "ggiraph", "leaflet", "ows4R"
+))
+```
+
+``` r
+fichier_dump <- "tables_sauf_mei_2024_01_22_12_13_56.RData"
+generer_popups <- TRUE
 ```
 
 La préparation des données reprend les étapes [décrites
@@ -69,8 +80,6 @@ load("hydro_sandre.rda")
 ## Découpage administratif
 
 ``` r
-if (!require("COGiter")) remotes::install_github("MaelTheuliere/COGiter")
-
 dep_geo <- COGiter::departements_metro_geo %>% 
              dplyr::left_join(
                  COGiter::departements,
@@ -119,8 +128,6 @@ Les données utilisées sont les données du dump sql de la base importées
 dans R mais sans autre pré-traitement.
 
 ``` r
-fichier_dump <- "tables_sauf_mei_2023_11_08_15_32_42.236211.RData"
-
 load(fichier_dump)
 
 date_export <- fichier_dump %>% 
@@ -138,14 +145,17 @@ correspondant à des protocoles permettant d’avoir une vision peuplement
 conservés).
 
 ``` r
-if (!require("aspe")) remotes::install_github("PascalIrz/aspe")
-
 captures <- aspe::mef_creer_passerelle() %>%
   aspe::mef_ajouter_ope_date() %>%
   aspe::mef_ajouter_libelle() %>% 
   aspe::mef_ajouter_qualification() %>% 
   aspe::mef_ajouter_type_protocole() %>% 
   aspe::mef_ajouter_libelle() %>% 
+  dplyr::left_join(
+      operation %>% 
+          dplyr::select(ope_id, ope_surface_calculee),
+      by = "ope_id"
+      ) %>% 
     dplyr::filter(
         niq_libelle == "Correcte",
         !is.na(sta_id),
@@ -162,17 +172,19 @@ captures <- aspe::mef_creer_passerelle() %>%
         pop_id, pop_libelle, 
         ope_id, ope_date, annee, 
         pro_libelle,
-        esp_code_alternatif
+        esp_code_alternatif, ope_surface_calculee
     ) %>% 
     dplyr::summarise(
         effectif = sum(lop_effectif), 
+        densite = 1000 * sum(lop_effectif) / unique(ope_surface_calculee),
         .groups = "drop"
         ) %>% 
     dplyr::mutate(pop_id = as.character(pop_id))
 ```
 
-Dans un certain nombre de cas, il peut y avoir plus d’une pêche par
-point et par an, y-a-t-il une raison et quelle pêche conserver?
+Dans un certain nombre de cas, il peut y avoir plus d’une opération de
+pêche par point et par an (voire même par date), y-a-t-il une raison et
+quelle pêche conserver?
 
 ``` r
 captures %>% 
@@ -186,14 +198,7 @@ captures %>%
     dplyr::filter(n_ope > 1)
 ```
 
-Pour le moment, on conserve la dernière pêche de l’année.
-
-``` r
-captures <- captures %>% 
-    dplyr::group_by(pop_id, annee) %>% 
-    dplyr::filter(ope_date == max(ope_date)) %>% 
-    dplyr::ungroup()
-```
+Pour le moment, on conserve toutes les opérations
 
 ## IPR
 
@@ -700,7 +705,8 @@ LegendeIpr <- (
 
 LegendeDistribution <- (
     carte_operations %>% 
-        dplyr::filter(variable == "distribution") %>%         dplyr::inner_join(
+        dplyr::filter(variable == "distribution") %>%        
+        dplyr::inner_join(
             pop_geo, ., by = "pop_id"
         ) %>% 
         ggplot2::ggplot() +

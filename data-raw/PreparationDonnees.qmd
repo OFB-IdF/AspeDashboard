@@ -19,7 +19,7 @@ pak::pkg_install(c(
 
 ```{r}
 fichier_dump <- "tables_sauf_mei_2024_01_22_12_13_56.RData"
-generer_popups <- FALSE
+generer_popups <- TRUE
 ```
 
 La préparation des données reprend les étapes [décrites ici](https://github.com/PascalIrz/aspe_demo/blob/main/scripts/10_preparation_donnees.Rmd).
@@ -351,7 +351,7 @@ if (generer_popups) {
          width = .96
          )
 
-# usethis::use_data(plots_especes, overwrite = TRUE)
+save(plots_especes, file = "plots_especes.rda")
 }
 
 ```
@@ -402,7 +402,7 @@ if (generer_popups) {
         ) %>% 
     purrr::reduce(.f = c)
 
-# usethis::use_data(plots_ipr, overwrite = TRUE)
+save(plots_ipr, file = "plots_ipr.rda")
 }
 
 ```
