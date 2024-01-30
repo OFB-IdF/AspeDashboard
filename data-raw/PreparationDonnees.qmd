@@ -153,6 +153,11 @@ captures <- aspe::mef_creer_passerelle() %>%
   aspe::mef_ajouter_qualification() %>% 
   aspe::mef_ajouter_type_protocole() %>% 
   aspe::mef_ajouter_libelle() %>% 
+  dplyr::left_join(
+      operation %>% 
+          dplyr::select(ope_id, ope_surface_calculee),
+      by = "ope_id"
+      ) %>% 
     dplyr::filter(
         niq_libelle == "Correcte",
         !is.na(sta_id),
@@ -169,16 +174,17 @@ captures <- aspe::mef_creer_passerelle() %>%
         pop_id, pop_libelle, 
         ope_id, ope_date, annee, 
         pro_libelle,
-        esp_code_alternatif
+        esp_code_alternatif, ope_surface_calculee
     ) %>% 
     dplyr::summarise(
         effectif = sum(lop_effectif), 
+        densite = 1000 * sum(lop_effectif) / unique(ope_surface_calculee),
         .groups = "drop"
         ) %>% 
     dplyr::mutate(pop_id = as.character(pop_id))
 ```
 
-Dans un certain nombre de cas, il peut y avoir plus d'une pêche par point et par an, y-a-t-il une raison et quelle pêche conserver?
+Dans un certain nombre de cas, il peut y avoir plus d'une opération de pêche par point et par an (voire même par date), y-a-t-il une raison et quelle pêche conserver?
 
 ```{r}
 captures %>% 
@@ -194,15 +200,7 @@ captures %>%
 
 ```
 
-Pour le moment, on conserve la dernière pêche de l'année.
-
-```{r}
-captures <- captures %>% 
-    dplyr::group_by(pop_id, annee) %>% 
-    dplyr::filter(ope_date == max(ope_date)) %>% 
-    dplyr::ungroup()
-
-```
+Pour le moment, on conserve toutes les opérations
 
 ## IPR
 
@@ -715,7 +713,8 @@ LegendeIpr <- (
 
 LegendeDistribution <- (
     carte_operations %>% 
-        dplyr::filter(variable == "distribution") %>%         dplyr::inner_join(
+        dplyr::filter(variable == "distribution") %>%        
+        dplyr::inner_join(
             pop_geo, ., by = "pop_id"
         ) %>% 
         ggplot2::ggplot() +
