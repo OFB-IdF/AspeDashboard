@@ -158,6 +158,11 @@ captures <- aspe::mef_creer_passerelle() %>%
           dplyr::select(ope_id, ope_surface_calculee),
       by = "ope_id"
       ) %>% 
+    dplyr::left_join(
+        station %>% 
+            dplyr::select(sta_id, sta_code_sandre, sta_libelle_sandre),
+        by = "sta_id"
+    ) %>% 
     dplyr::filter(
         niq_libelle == "Correcte",
         !is.na(sta_id),
@@ -170,7 +175,7 @@ captures <- aspe::mef_creer_passerelle() %>%
     ) %>% 
   aspe::mef_ajouter_lots() %>% 
     dplyr::group_by(
-        sta_id,
+        sta_id, sta_code_sandre, sta_libelle_sandre,
         pop_id, pop_libelle, 
         ope_id, ope_date, annee, 
         pro_libelle,
@@ -227,6 +232,11 @@ ipr <- aspe::mef_creer_passerelle() %>%
     dplyr::filter(
         !is.na(ipr),
         !is.na(sup_500m)
+    ) %>% 
+    dplyr::left_join(
+        station %>% 
+            dplyr::select(sta_id, sta_code_sandre, sta_libelle_sandre),
+        by = "sta_id"
     )
 
 ```
@@ -239,7 +249,7 @@ pop <- point_prelevement %>%
   aspe::mef_ajouter_libelle() %>%
   dplyr::left_join(
       y = station %>%
-          dplyr::select(sta_id, sta_code_sandre)
+          dplyr::select(sta_id, sta_code_sandre, sta_libelle_sandre)
       ) %>%
   aspe::geo_ajouter_crs(var_id_crs = pop_typ_id) %>%
   dplyr::select(
@@ -248,7 +258,7 @@ pop <- point_prelevement %>%
     pop_coordonnees_x,
     pop_coordonnees_y,
     typ_code_epsg,
-    sta_code_sandre
+    sta_code_sandre, sta_libelle_sandre
   ) %>% 
     dplyr::filter(
         pop_id %in% unique(captures$pop_id)
@@ -292,7 +302,7 @@ pop_geo <- pop %>%
   dplyr::select(
     pop_id,
     pop_libelle,
-    sta_code_sandre,
+    sta_code_sandre, sta_libelle_sandre,
     dept_id = INSEE_DEP,
     dept_libelle = NOM_DEP,
     reg_id = INSEE_REG,
@@ -595,7 +605,7 @@ carte_operations <- dplyr::bind_rows(
     ) %>% 
     dplyr::mutate(
         hover = paste0(
-            "<b>", pop_libelle, " (", pop_id, ")</b><br>",
+            "<b>", sta_libelle_sandre, " (", sta_code_sandre, ")</b><br>",
             "<em>", dept_libelle, " (", reg_libelle, ")</em><br>",
             nb_annees, " année",
             ifelse(as.numeric(nb_annees) > 1 , "s", ""),
