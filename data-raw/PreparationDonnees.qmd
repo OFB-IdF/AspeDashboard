@@ -181,7 +181,8 @@ captures <- aspe::mef_creer_passerelle() %>%
         densite = 1000 * sum(lop_effectif) / unique(ope_surface_calculee),
         .groups = "drop"
         ) %>% 
-    dplyr::mutate(pop_id = as.character(pop_id))
+    dplyr::mutate(pop_id = as.character(pop_id)) %>% 
+    dplyr::filter(ope_surface_calculee > 0)
 ```
 
 Dans un certain nombre de cas, il peut y avoir plus d'une opération de pêche par point et par an (voire même par date), y-a-t-il une raison et quelle pêche conserver?
@@ -529,23 +530,21 @@ SyntheseIpr <-  ipr %>%
     dplyr::select(pop_id, annee, nb_annees, variable, valeur, derniere_annee, donnees_recentes)
 
 SyntheseDistributions <- captures %>% 
-    dplyr::mutate(pop_id = as.character(pop_id)) %>%
-    dplyr::group_by(pop_id, annee, esp_code_alternatif) %>% 
-    dplyr::summarise(effectif = sum(effectif), .groups = "drop") %>% 
-    # dplyr::filter(pop_id == unique(pop_id)[1]) -> df
+    dplyr::select(pop_id, annee, ope_id, ope_surface_calculee, 
+                  esp_code_alternatif, effectif) %>% 
     dplyr::group_by(pop_id) %>% 
     dplyr::group_split(.keep = TRUE) %>%  
     purrr::map(
         function(df) {
             df %>% 
                 tidyr::pivot_wider(
-                    id_cols = c(pop_id, annee),
+                    id_cols = c(pop_id, annee, ope_id, ope_surface_calculee),
                     names_from = esp_code_alternatif,
                     values_from = effectif,
                     values_fill = 0
                 ) %>% 
                 tidyr::pivot_longer(
-                    cols = -c(pop_id, annee),
+                    cols = -c(pop_id, annee, ope_id, ope_surface_calculee),
                     names_to = "esp_code_alternatif",
                     values_to = "effectif"
                 )
@@ -553,17 +552,20 @@ SyntheseDistributions <- captures %>%
         .progress = TRUE
     ) %>% 
      purrr::list_rbind() %>% 
+    dplyr::mutate(
+        densite = 1000 * effectif / ope_surface_calculee
+    ) %>% 
     dplyr::group_by(pop_id, esp_code_alternatif) %>% 
     dplyr::mutate(
         nb_annees = unique(dplyr::n_distinct(annee[effectif > 0])),
         nb_annees_tot = unique(dplyr::n_distinct(annee)),
         variable = "distribution",
-        valeur = unique(as.character(round(mean(effectif[effectif > 0]), 1))),
+        valeur = unique(as.character(round(mean(densite[densite > 0]), 1))),
         derniere_annee = max(annee[effectif > 0]),
         donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5
     ) %>% 
     dplyr::ungroup() %>% 
-    dplyr::select(pop_id, esp_code_alternatif, annee, nb_annees, nb_annees_tot, variable, valeur, derniere_annee, donnees_recentes, effectif)
+    dplyr::select(pop_id, esp_code_alternatif, annee, nb_annees, nb_annees_tot, variable, valeur, derniere_annee, donnees_recentes, effectif, densite)
 ```
 
 ```{r}
@@ -608,7 +610,7 @@ carte_operations <- dplyr::bind_rows(
                     ifelse(as.numeric(valeur) > 1, "s", "")
                     ),
                 variable == "ipr" ~ paste0(valeur, " état"),
-                variable == "distribution" ~ paste0("Effectif moyen quand capturée: ", valeur)
+                variable == "distribution" ~ paste0("Densité moyenne quand capturée: ", valeur)
                 ),
             ifelse(variable == "distribution", "",
                    paste0(" (", annee, ")")
