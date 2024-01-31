@@ -19,8 +19,9 @@ mod_graphes_metriques_ui <- function(id){
 #' graphes_metriques Server Functions
 #'
 #' @noRd 
-#' @importFrom dplyr filter
-#' @importFrom ggplot2 scale_x_continuous theme_minimal theme element_blank
+#' @importFrom dplyr filter distinct mutate pull
+#' @importFrom ggplot2 scale_x_continuous labs theme_minimal theme element_blank element_text scale_y_continuous
+#' @importFrom templatesOFB int_breaks int_limits
 mod_graphes_metriques_server <- function(id, variable, point, departement, bassin,  periode, espece){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
@@ -49,8 +50,8 @@ mod_graphes_metriques_server <- function(id, variable, point, departement, bassi
                             orientation = "v"
                         ) +
                         ggplot2::scale_x_continuous(
-                            breaks = int_breaks,
-                            limits = int_limits
+                            breaks = templatesOFB::int_breaks,
+                            limits = templatesOFB::int_limits
                         ) +
                         ggplot2::labs(
                             title = SelectionMetriques %>% 
@@ -83,12 +84,12 @@ mod_graphes_metriques_server <- function(id, variable, point, departement, bassi
                 station = point()
             ) +
                 ggplot2::scale_x_continuous(
-                    breaks = int_breaks,
-                    limits = int_limits
+                    breaks = templatesOFB::int_breaks,
+                    limits = templatesOFB::int_limits
                 )  +
                 ggplot2::scale_y_continuous(
-                    breaks = int_breaks,
-                    limits = int_limits
+                    breaks = templatesOFB::int_breaks,
+                    limits = templatesOFB::int_limits
                 ) +
                 ggplot2::theme(
                     strip.text = ggplot2::element_text(hjust = 0, size = 12, face = "bold"),

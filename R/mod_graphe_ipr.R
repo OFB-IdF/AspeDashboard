@@ -17,6 +17,9 @@ mod_graphe_ipr_ui <- function(id){
 #' graphe_ipr Server Functions
 #'
 #' @noRd 
+#' @importFrom dplyr filter
+#' @importFrom ggplot2 theme element_line element_text scale_x_continuous scale_y_continuous
+#' @importFrom templatesOFB theme_ofb int_breaks int_limits
 mod_graphe_ipr_server <- function(id, departement, bassin, periode){
   moduleServer( id, function(input, output, session){
     ns <- session$ns
@@ -37,12 +40,12 @@ mod_graphe_ipr_server <- function(id, departement, bassin, periode){
                 axis.text = ggplot2::element_text(size = 10)
             ) +
             ggplot2::scale_x_continuous(
-                breaks = int_breaks,
-                limits = int_limits
+                breaks = templatesOFB::int_breaks,
+                limits = templatesOFB::int_limits
             ) +
             ggplot2::scale_y_continuous(
-                breaks = int_breaks,
-                limits = int_limits
+                breaks = templatesOFB::int_breaks,
+                limits = templatesOFB::int_limits
             )
     )
   })

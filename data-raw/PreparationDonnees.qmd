@@ -8,8 +8,18 @@ editor: visual
 ---
 
 ```{r}
-fichier_dump <- "tables_sauf_mei_2023_11_08_15_32_42.236211.RData"
-generer_popups <- FALSE
+if (!require("pak")) install.packages("pak")
+
+pak::pkg_install(c(
+    "CedricMondy/AspeDashboard", "MaelTheuliere/COGiter", "PascalIrz/aspe",
+    "httr", "sf", "rmapshaper", "dplyr", "purrr", "usethis", "stringr", "progress", "lubridate", "tidyr",
+    "ggplot2", "cowplot", "ggiraph", "leaflet", "ows4R"
+))
+```
+
+```{r}
+fichier_dump <- "tables_sauf_mei_2024_01_22_12_13_56.RData"
+generer_popups <- TRUE
 ```
 
 La préparation des données reprend les étapes [décrites ici](https://github.com/PascalIrz/aspe_demo/blob/main/scripts/10_preparation_donnees.Rmd).
@@ -76,8 +86,6 @@ load("hydro_sandre.rda")
 ## Découpage administratif
 
 ```{r}
-if (!require("COGiter")) remotes::install_github("MaelTheuliere/COGiter")
-
 dep_geo <- COGiter::departements_metro_geo %>% 
              dplyr::left_join(
                  COGiter::departements,
@@ -139,14 +147,17 @@ usethis::use_data(date_export, overwrite = TRUE)
 On ne conserve que les données ayant une qualification correcte et correspondant à des protocoles permettant d'avoir une vision peuplement (les protocoles ciblant des espèces particulières ne sont pas conservés).
 
 ```{r}
-if (!require("aspe")) remotes::install_github("PascalIrz/aspe")
-
 captures <- aspe::mef_creer_passerelle() %>%
   aspe::mef_ajouter_ope_date() %>%
   aspe::mef_ajouter_libelle() %>% 
   aspe::mef_ajouter_qualification() %>% 
   aspe::mef_ajouter_type_protocole() %>% 
   aspe::mef_ajouter_libelle() %>% 
+  dplyr::left_join(
+      operation %>% 
+          dplyr::select(ope_id, ope_surface_calculee),
+      by = "ope_id"
+      ) %>% 
     dplyr::filter(
         niq_libelle == "Correcte",
         !is.na(sta_id),
@@ -163,16 +174,18 @@ captures <- aspe::mef_creer_passerelle() %>%
         pop_id, pop_libelle, 
         ope_id, ope_date, annee, 
         pro_libelle,
-        esp_code_alternatif
+        esp_code_alternatif, ope_surface_calculee
     ) %>% 
     dplyr::summarise(
         effectif = sum(lop_effectif), 
+        densite = 1000 * sum(lop_effectif) / unique(ope_surface_calculee),
         .groups = "drop"
         ) %>% 
-    dplyr::mutate(pop_id = as.character(pop_id))
+    dplyr::mutate(pop_id = as.character(pop_id)) %>% 
+    dplyr::filter(ope_surface_calculee > 0)
 ```
 
-Dans un certain nombre de cas, il peut y avoir plus d'une pêche par point et par an, y-a-t-il une raison et quelle pêche conserver?
+Dans un certain nombre de cas, il peut y avoir plus d'une opération de pêche par point et par an (voire même par date), y-a-t-il une raison et quelle pêche conserver?
 
 ```{r}
 captures %>% 
@@ -188,15 +201,7 @@ captures %>%
 
 ```
 
-Pour le moment, on conserve la dernière pêche de l'année.
-
-```{r}
-captures <- captures %>% 
-    dplyr::group_by(pop_id, annee) %>% 
-    dplyr::filter(ope_date == max(ope_date)) %>% 
-    dplyr::ungroup()
-
-```
+Pour le moment, on conserve toutes les opérations
 
 ## IPR
 
@@ -347,7 +352,7 @@ if (generer_popups) {
          width = .96
          )
 
-# usethis::use_data(plots_especes, overwrite = TRUE)
+save(plots_especes, file = "plots_especes.rda")
 }
 
 ```
@@ -398,7 +403,7 @@ if (generer_popups) {
         ) %>% 
     purrr::reduce(.f = c)
 
-# usethis::use_data(plots_ipr, overwrite = TRUE)
+save(plots_ipr, file = "plots_ipr.rda")
 }
 
 ```
@@ -525,23 +530,21 @@ SyntheseIpr <-  ipr %>%
     dplyr::select(pop_id, annee, nb_annees, variable, valeur, derniere_annee, donnees_recentes)
 
 SyntheseDistributions <- captures %>% 
-    dplyr::mutate(pop_id = as.character(pop_id)) %>%
-    dplyr::group_by(pop_id, annee, esp_code_alternatif) %>% 
-    dplyr::summarise(effectif = sum(effectif), .groups = "drop") %>% 
-    # dplyr::filter(pop_id == unique(pop_id)[1]) -> df
+    dplyr::select(pop_id, annee, ope_id, ope_surface_calculee, 
+                  esp_code_alternatif, effectif) %>% 
     dplyr::group_by(pop_id) %>% 
     dplyr::group_split(.keep = TRUE) %>%  
     purrr::map(
         function(df) {
             df %>% 
                 tidyr::pivot_wider(
-                    id_cols = c(pop_id, annee),
+                    id_cols = c(pop_id, annee, ope_id, ope_surface_calculee),
                     names_from = esp_code_alternatif,
                     values_from = effectif,
                     values_fill = 0
                 ) %>% 
                 tidyr::pivot_longer(
-                    cols = -c(pop_id, annee),
+                    cols = -c(pop_id, annee, ope_id, ope_surface_calculee),
                     names_to = "esp_code_alternatif",
                     values_to = "effectif"
                 )
@@ -549,17 +552,20 @@ SyntheseDistributions <- captures %>%
         .progress = TRUE
     ) %>% 
      purrr::list_rbind() %>% 
+    dplyr::mutate(
+        densite = 1000 * effectif / ope_surface_calculee
+    ) %>% 
     dplyr::group_by(pop_id, esp_code_alternatif) %>% 
     dplyr::mutate(
         nb_annees = unique(dplyr::n_distinct(annee[effectif > 0])),
         nb_annees_tot = unique(dplyr::n_distinct(annee)),
         variable = "distribution",
-        valeur = unique(as.character(round(mean(effectif[effectif > 0]), 1))),
+        valeur = unique(as.character(round(mean(densite[densite > 0]), 1))),
         derniere_annee = max(annee[effectif > 0]),
         donnees_recentes = (lubridate::year(lubridate::now()) - max(annee)) <= 5
     ) %>% 
     dplyr::ungroup() %>% 
-    dplyr::select(pop_id, esp_code_alternatif, annee, nb_annees, nb_annees_tot, variable, valeur, derniere_annee, donnees_recentes, effectif)
+    dplyr::select(pop_id, esp_code_alternatif, annee, nb_annees, nb_annees_tot, variable, valeur, derniere_annee, donnees_recentes, effectif, densite)
 ```
 
 ```{r}
@@ -604,7 +610,7 @@ carte_operations <- dplyr::bind_rows(
                     ifelse(as.numeric(valeur) > 1, "s", "")
                     ),
                 variable == "ipr" ~ paste0(valeur, " état"),
-                variable == "distribution" ~ paste0("Effectif moyen quand capturée: ", valeur)
+                variable == "distribution" ~ paste0("Densité moyenne quand capturée: ", valeur)
                 ),
             ifelse(variable == "distribution", "",
                    paste0(" (", annee, ")")
@@ -709,7 +715,8 @@ LegendeIpr <- (
 
 LegendeDistribution <- (
     carte_operations %>% 
-        dplyr::filter(variable == "distribution") %>%         dplyr::inner_join(
+        dplyr::filter(variable == "distribution") %>%        
+        dplyr::inner_join(
             pop_geo, ., by = "pop_id"
         ) %>% 
         ggplot2::ggplot() +

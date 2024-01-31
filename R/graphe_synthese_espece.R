@@ -14,6 +14,7 @@ graphe_synthese_espece <- function(captures, espece, station) {
         dplyr::group_by(pop_id, annee, ope_id) %>% 
         dplyr::summarise(
             effectif = sum(effectif[esp_code_alternatif == espece]),
+            densite = sum(densite[esp_code_alternatif == espece]),
             .groups = "drop"
         ) %>% 
         dplyr::mutate(presence = effectif > 0)
@@ -21,7 +22,7 @@ graphe_synthese_espece <- function(captures, espece, station) {
     labels_metriques <- c(
         nb_pop = "Nombre de stations",
         eff_tot = "Effectif total sur l'ensemble des stations",
-        eff_moy = "Effectif moyen lorsque l'espèce est présente"
+        dens_moy = "Densité moyenne lorsque l'espèce est présente"
     )
     
     data_n_stations <- data_graphe %>% 
@@ -29,11 +30,11 @@ graphe_synthese_espece <- function(captures, espece, station) {
         dplyr::summarise(
             nb_pop = dplyr::n_distinct(pop_id),
             eff_tot = sum(effectif),
-            eff_moy = mean(effectif),
+            dens_moy = mean(densite),
             .groups = "drop"
         ) %>% 
         tidyr::pivot_longer(
-            cols = c(nb_pop, eff_tot, eff_moy),
+            cols = c(nb_pop, eff_tot, dens_moy),
             names_to = "metrique",
             values_to = "valeurs"
         ) %>% 
@@ -49,11 +50,11 @@ graphe_synthese_espece <- function(captures, espece, station) {
         dplyr::filter(pop_id %in% station) %>% 
         dplyr::group_by(annee, presence) %>% 
         dplyr::summarise(
-            eff_moy = mean(effectif),
+            dens_moy = mean(densite),
             .groups = "drop"
         ) %>% 
         tidyr::pivot_longer(
-            cols = eff_moy,
+            cols = dens_moy,
             names_to = "metrique",
             values_to = "valeurs"
         ) %>% 
