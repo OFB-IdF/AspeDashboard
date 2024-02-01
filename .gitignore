@@ -14,3 +14,11 @@ man
 rsconnect/shinyapps.io/ofbidf/AspeDashboard.dcf
 
 inst/app/data/
+
+data-raw/plots_especes.rda
+
+data-raw/plots_ipr.rda
+
+inst/app/www/widgets/especes.tar
+
+inst/app/www/widgets/ipr.tar
