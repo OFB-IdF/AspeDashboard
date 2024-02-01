@@ -7,14 +7,18 @@ execute:
 editor: visual
 ---
 
-```{r}
+```{r, eval=FALSE}
 if (!require("pak")) install.packages("pak")
 
 pak::pkg_install(c(
-    "CedricMondy/AspeDashboard", "MaelTheuliere/COGiter", "PascalIrz/aspe",
+    # "CedricMondy/AspeDashboard",
+    "PascalIrz/aspe",
     "httr", "sf", "rmapshaper", "dplyr", "purrr", "usethis", "stringr", "progress", "lubridate", "tidyr",
     "ggplot2", "cowplot", "ggiraph", "leaflet", "ows4R"
 ))
+
+source("https://raw.githubusercontent.com/CedricMondy/utils_unpackaged/main/R/get_data_from_sandre.R")
+
 ```
 
 ```{r}
@@ -76,11 +80,6 @@ dh_geo <- read_sandre_wfs(
     crs = 2154
 )
   
-save(sh_geo, rh_geo, dh_geo, file = "hydro_sandre.rda")
-```
-
-```{r}
-load("hydro_sandre.rda")
 ```
 
 ## Découpage administratif
@@ -107,23 +106,6 @@ reg_geo <- COGiter::regions_metro_geo %>%
                  NOM_REG = NCCENR
                  )
 
-administratif <- dep_geo %>% 
-    sf::st_drop_geometry() %>% 
-    dplyr::distinct(
-        INSEE_REG, INSEE_DEP, NOM_DEP
-    ) %>% 
-    dplyr::mutate(
-        INSEE_REG = factor(
-            INSEE_REG,
-            levels = c("84", "27", "53", "24", "44", "32", "11", "28", "75", "76", "52", "93", "94")
-        ),
-        departement = paste0(NOM_DEP, " (", INSEE_DEP, ")")
-    ) %>% 
-    dplyr::filter(!is.na(INSEE_REG)) %>% 
-    dplyr::arrange(INSEE_REG, NOM_DEP) %>% 
-    dplyr::mutate(INSEE_REG = as.character(INSEE_REG))
-
-usethis::use_data(administratif, overwrite = TRUE)
 ```
 
 # Données ASPE
@@ -139,7 +121,6 @@ date_export <- fichier_dump %>%
     stringr::str_extract(pattern = "\\d{4}_\\d{2}_\\d{2}") %>% 
     lubridate::as_date(format = "%Y_%m_%d")
 
-usethis::use_data(date_export, overwrite = TRUE)
 ```
 
 ## Sélection des données de capture
@@ -316,7 +297,6 @@ pop_geo <- pop %>%
   ) %>% 
     sf::st_transform(crs = 4326)
 
-usethis::use_data(pop_geo, overwrite = TRUE)
 ```
 
 ```{r}
@@ -336,7 +316,6 @@ ipr <- ipr %>%
         by = "pop_id"
     )
 
-usethis::use_data(captures, ipr, overwrite = TRUE)
 ```
 
 # Graphiques Popups
@@ -355,6 +334,9 @@ if (generer_popups) {
     plots_especes <- captures %>% 
     # dplyr::filter(pop_id == pop_id[100]) %>% 
      aspe::gg_temp_peuplement(
+         var_id_sta = pop_id,
+         var_libelle_sta = pop_libelle,
+         longueur_libelle = 30,
          interactif = TRUE,
          largeur = DimensionsPopups$largeur,
          hauteur = DimensionsPopups$hauteur,
@@ -424,7 +406,6 @@ save(plots_ipr, file = "plots_ipr.rda")
 codes_especes <- aspe::data_passerelle_taxo$esp_code_taxref %>% 
         purrr::set_names(aspe::data_passerelle_taxo$esp_code_alternatif)
 
-usethis::use_data(codes_especes, overwrite = TRUE)
 ```
 
 ```{r}
@@ -453,7 +434,6 @@ file.copy(
     overwrite = TRUE
     )
 
-usethis::use_data(popups_especes, overwrite = TRUE)
 
  popups_ipr <- AspeDashboard::prep_sauver_popups(
      # plots = plots_ipr[names(plots_ipr) %in% names(plots_especes[seq(10)])],
@@ -477,7 +457,6 @@ AspeDashboard::archiver_popups(
      overwrite = TRUE
      )
 
- usethis::use_data(popups_ipr, overwrite = TRUE)
  
  unlink("inst", recursive = TRUE)
 }
@@ -638,7 +617,6 @@ carte_operations <- dplyr::bind_rows(
         nb_annees, variable, valeur, hover, couleur, opacite
         ) 
 
-usethis::use_data(carte_operations, overwrite = TRUE)
 ```
 
 ```{r}
@@ -755,7 +733,6 @@ LegendeDistribution <- (
     ) 
 
 
-usethis::use_data(LegendeEspeces, LegendeIpr, LegendeDistribution, overwrite = TRUE)
 ```
 
 # Métriques IPR
@@ -784,7 +761,6 @@ metriques <-
             dplyr::mutate(variable = "ipr")
     )
 
-usethis::use_data(metriques, overwrite = TRUE)
 ```
 
 ```{r}
@@ -794,3 +770,7 @@ download.file(
     overwrite = TRUE
 )
 ```
+```{r}
+save(date_export, pop_geo, captures, ipr, codes_especes, popups_especes, popups_ipr, carte_operations, LegendeEspeces, LegendeIpr, LegendeDistribution, metriques, file = "../inst/app/data/dataApp.rda")
+```
+

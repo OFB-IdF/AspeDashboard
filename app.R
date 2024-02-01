@@ -4,4 +4,8 @@
 
 pkgload::load_all(export_all = FALSE,helpers = FALSE,attach_testthat = FALSE)
 options( "golem.app.prod" = TRUE)
-AspeDashboard::run_app() # add parameters here (if any)
+AspeDashboard::run_app(
+    onStart = function() {
+        load("inst/app/data/dataApp.rda", envir = .GlobalEnv)
+    }
+) # add parameters here (if any)
