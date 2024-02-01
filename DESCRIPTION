@@ -4,7 +4,7 @@ Version: 0.0.0.9000
 Authors@R: 
     person("Cédric", "MONDY", , "cedric.mondy@ofb.gouv.fr", role = c("cre", "aut"))
 Description: Tableau de bord interactif permettant d'explorer les données
-    de pêche contenues dans la base de données ASPE
+    de pêche contenues dans la base de données ASPE.
 License: MIT + file LICENSE
 Depends: 
     R (>= 2.10)
@@ -33,6 +33,10 @@ Imports:
     tidyr,
     utils
 Suggests: 
+    cowplot,
+    httr,
+    ows4R,
+    rmapshaper,
     spelling,
     testthat
 Config/testthat/edition: 3

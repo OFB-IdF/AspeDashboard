@@ -4,6 +4,7 @@
 #'     DO NOT REMOVE.
 #' @import shiny
 #' @noRd
+#' @importFrom utils untar
 app_server <- function( input, output, session ) {
     
     if (!dir.exists("inst/app/www/widgets/especes"))

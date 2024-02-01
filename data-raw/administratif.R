@@ -1,8 +1,20 @@
-# library(AspeDashboard)
-devtools::load_all()
-load("../data/processed/DONNEES PRETRAITEES/poly_geo_simp.RData")
+# Préparation données du package
+if (!require("pak")) install.packages("pak")
 
-administratif <- depts_geo %>% 
+pak::pkg_install(c("MaelTheuliere/COGiter", "dplyr", "sf", "usethis"))
+
+dep_geo <- COGiter::departements_metro_geo %>% 
+    dplyr::left_join(
+        COGiter::departements,
+        by = "DEP"
+    ) %>% 
+    dplyr::select(
+        INSEE_REG = REG, 
+        INSEE_DEP = DEP,
+        NOM_DEP = NCCENR
+    )
+
+administratif <- dep_geo %>% 
     sf::st_drop_geometry() %>% 
     dplyr::distinct(
         INSEE_REG, INSEE_DEP, NOM_DEP
@@ -18,4 +30,4 @@ administratif <- depts_geo %>%
     dplyr::arrange(INSEE_REG, NOM_DEP) %>% 
     dplyr::mutate(INSEE_REG = as.character(INSEE_REG))
 
-usethis::use_data(administratif, overwrite = TRUE)
+usethis::use_data(administratif, internal = TRUE, overwrite = TRUE)
