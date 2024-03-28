@@ -7,11 +7,11 @@ execute:
 editor: visual
 ---
 
-```{r, eval=FALSE}
+```{r, eval=TRUE}
 if (!require("pak")) install.packages("pak")
 
 pak::pkg_install(c(
-    # "CedricMondy/AspeDashboard",
+    "CedricMondy/AspeDashboard",
     "PascalIrz/aspe",
     "httr", "sf", "rmapshaper", "dplyr", "purrr", "usethis", "stringr", "progress", "lubridate", "tidyr",
     "ggplot2", "cowplot", "ggiraph", "leaflet", "ows4R"
@@ -134,6 +134,7 @@ captures <- aspe::mef_creer_passerelle() %>%
   aspe::mef_ajouter_qualification() %>% 
   aspe::mef_ajouter_type_protocole() %>% 
   aspe::mef_ajouter_libelle() %>% 
+  aspe::mef_ajouter_objectif() %>% 
   dplyr::left_join(
       operation %>% 
           dplyr::select(ope_id, ope_surface_calculee),
@@ -650,7 +651,7 @@ LegendeEspeces <- (
             )
         )
     )  %>% 
-    cowplot::get_legend() %>% 
+    cowplot::get_plot_component(pattern = "guide-box-bottom") %>% 
     cowplot::plot_grid() +
     ggplot2::theme(
         plot.margin = ggplot2::unit(c(0,0,0,0), 'pt')
@@ -695,7 +696,7 @@ LegendeIpr <- (
                 )
         )
 )  %>% 
-    cowplot::get_legend() %>% 
+    cowplot::get_plot_component(pattern = "guide-box-bottom") %>% 
     cowplot::plot_grid() +
     ggplot2::theme(
         plot.margin = ggplot2::unit(c(0,0,0,0), 'pt')
@@ -726,7 +727,7 @@ LegendeDistribution <- (
             )
         )
     )  %>% 
-    cowplot::get_legend() %>% 
+    cowplot::get_plot_component(pattern = "guide-box-bottom") %>% 
     cowplot::plot_grid() +
     ggplot2::theme(
         plot.margin = ggplot2::unit(c(0,0,0,0), 'pt')
@@ -770,7 +771,7 @@ download.file(
     overwrite = TRUE
 )
 ```
+
 ```{r}
 save(date_export, pop_geo, captures, ipr, codes_especes, popups_especes, popups_ipr, carte_operations, LegendeEspeces, LegendeIpr, LegendeDistribution, metriques, file = "../inst/app/data/dataApp.rda")
 ```
-
