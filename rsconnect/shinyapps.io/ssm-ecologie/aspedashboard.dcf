@@ -1,0 +1,13 @@
+name: aspedashboard
+title: AspeDashboard
+username: ssm-ecologie
+account: ssm-ecologie
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6426251
+bundleId: 8509512
+url: https://ssm-ecologie.shinyapps.io/aspedashboard/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: data-raw
