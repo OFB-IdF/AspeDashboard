@@ -24,3 +24,5 @@ inst/app/www/widgets/especes.tar
 inst/app/www/widgets/ipr.tar
 
 data-raw/PreparationDonnees.rmarkdown
+
+dropbox_token.rds

@@ -5,7 +5,31 @@
 #' @import shiny
 #' @noRd
 #' @importFrom utils untar
+#' @importFrom shinylogs track_usage store_json
+#' @importFrom rdrop2 drop_auth drop_upload
+#' @importFrom purrr walk
 app_server <- function( input, output, session ) {
+    shinylogs::track_usage(
+        storage_mode = shinylogs::store_json("logs/")
+    )
+    
+    session$onSessionEnded(function() {
+        rdrop2::drop_auth(
+            rdstoken = "dropbox_token.rds"
+        )
+        
+        list.files("logs") %>%
+            purrr::walk(
+                function(log) {
+                    rdrop2::drop_upload(
+                        file = file.path("logs", log),
+                        path = "shinyapps_logs",
+                        mode = "add"
+                    )
+                }
+            )
+    })
+    
     
     if (!dir.exists("inst/app/www/widgets/especes"))
         utils::untar("inst/app/www/widgets/especes.tar")
