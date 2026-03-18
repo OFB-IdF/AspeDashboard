@@ -66,8 +66,11 @@ prep_popups <- function(chemin_widgets, dir_widgets, largeur, hauteur) {
         stringr::str_remove("</style> </head>") %>% 
         stringr::str_replace_all(pattern = ";", replacement = ";\n") %>% 
         stringr::str_replace_all(pattern = "\\}", replacement = "\\}\n\n") %>% 
-        stringr::str_replace_all(pattern = "\\{", replacement = "\\{\n")  
-    
+        stringr::str_replace_all(pattern = "\\{", replacement = "\\{\n") |> 
+        stringr::str_replace_all(
+            pattern = "width:\\d*px;height:\\d*px;",
+            replacement = "width:auto;height:auto;"
+        )
     popups <- popups %>% 
         stringr::str_remove_all(
             pattern = "<head> <style>.*</style> </head>"
@@ -99,7 +102,7 @@ prep_popups <- function(chemin_widgets, dir_widgets, largeur, hauteur) {
 #' @return
 #' @export
 #'
-prep_sauver_popups <- function(plots, dir_popup, largeur_popup, hauteur_popup, reduire_marges = TRUE, lien_inpn = FALSE, verbose = TRUE) {
+prep_sauver_popups <- function(plots, dir_popup, largeur_popup, hauteur_popup, reduire_marges = TRUE, dimensions_auto = TRUE, lien_inpn = FALSE, verbose = TRUE) {
 
 
     if (verbose) cat("Enregistrement des graphiques HTML\n")
@@ -119,7 +122,7 @@ prep_sauver_popups <- function(plots, dir_popup, largeur_popup, hauteur_popup, r
         hauteur = hauteur_popup
     )
     
-    if (reduire_marges | lien_inpn) {
+    if (reduire_marges | lien_inpn | dimensions_auto) {
         cat("Ajustements des fichiers HTML\n")
         
         fichiers <- list.files(dir_popup,
@@ -148,6 +151,18 @@ prep_sauver_popups <- function(plots, dir_popup, largeur_popup, hauteur_popup, r
                                     pattern = "\\\"padding\\\":15,\\\"fill\\\":true",
                                     replacement = "\\\"padding\\\":0,\\\"fill\\\":true"
                                 )
+                        }
+
+                        if (dimensions_auto) {
+                            text_out <- text_out %>% 
+                                stringr::str_replace_all(
+                                    pattern = "width:\\d+px;height:\\d+px;",
+                                    replacement = "width:auto;height:auto;"
+                                ) %>%
+                                stringr::str_replace_all(
+                                     pattern = "\"browser\":\\{\"width\":\\d+,\"height\":\\d+",
+                                     replacement = "\"browser\":{\"width\":\"auto\",\"height\":\"auto\""
+                                 )
                         }
                         
                         if (lien_inpn) {

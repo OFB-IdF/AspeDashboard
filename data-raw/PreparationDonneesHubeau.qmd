@@ -371,9 +371,10 @@ ipr <- ipr |>
 # Graphiques Popups
 
 ```{r}
+dim_base = 1.15
 DimensionsPopups <- list(
-    largeur = 4,
-    hauteur = 5
+    largeur = dim_base*4,
+    hauteur = dim_base*4.7
 )
 ```
 ## Composition taxonomique
