@@ -3,7 +3,11 @@ install.packages("pak")
 pak::pkg_install(c(
     "OFB-IdF/templatesOFB",
     "OFB-IdF/AspeDashboard",
-    "OFB-IdF/AspeDashboardData"
+    "OFB-IdF/AspeDashboardData",
+    "MaelTheuliere/COGiter",
+    "PascalIrz/aspe",
+    "karthik/rdrop2",
+    "OFB-IdF/templatesOFB"
 ))
 
 download_sandre <- FALSE
